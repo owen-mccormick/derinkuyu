@@ -3,7 +3,9 @@
 
 enum class Material {
   VACUUM,
-  ROCK
+  ROCK,
+  WOOD,
+  LEAVES
 };
 
 struct Tile {

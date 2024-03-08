@@ -7,14 +7,38 @@ int tickCount = 0;
 
 Map::Map(int width, int height, int displaywidth, int displayheight) : width(width),
     height(height), displaywidth(displaywidth), displayheight(displayheight) {
+
   tiles = new Tile[width * height];
+  TCODRandom* rng = TCODRandom::getInstance();
 
   // Surface layer
   for (int i = 0; i < width; i++) {
     setWalkable(i, 14, false);
   }
+
+  // Use Bresehnam line tools to draw tree trunks
+  for (int k = 0; k < 3; k++) {
+    TCOD_bresenham_data_t data;
+    int x = rng->getInt(0, width), y = 13;
+    TCOD_line_init_mt(x, y, x + rng->getInt(-1, 1), 5, &data);
+    do {
+      setMaterial(x, y, Material::WOOD);
+    } while (!TCOD_line_step_mt(&x, &y, &data));
+  }
+  // Leaves
+  for (int i = 0; i < width; i++) {
+    for (int j = 0; j < 10; j++) {
+      for (int xOff = -1; xOff < 2; xOff++) {
+        for (int yOff = -1; yOff < 2; yOff++) {
+          if (areCoordsValid(i + xOff, j + yOff) && getMaterial(i + xOff, j + yOff) == Material::WOOD && getMaterial(i, j) != Material::WOOD) {
+            setMaterial(i, j, Material::LEAVES);
+          }
+        }
+      }
+    }
+  }
+
   // Cellular automata cave creation based on https://www.roguebasin.com/index.php?title=Cellular_Automata_Method_for_Generating_Random_Cave-Like_Levels
-  TCODRandom* rng = TCODRandom::getInstance();
   for (int i = 0; i < width; i++) {
     for (int j = 15; j < height; j++) {
       if (rng->getInt(0, 100) < 65) {
@@ -67,7 +91,8 @@ void Map::setWalkable(int x, int y, bool walk) {
 }
 
 bool Map::isWalkable(int x, int y) {
-  return tiles[x + y * width].material == Material::VACUUM;
+  Material material = tiles[x + y * width].material;
+  return material == Material::VACUUM || material == Material::WOOD || material == Material::LEAVES;
 }
 
 void Map::setMaterial(int x, int y, Material material) {
@@ -96,7 +121,6 @@ void Map::render(tcod::Console &console, int playerx, int playery) {
     for (int j = playery - displayheight / 2; j < playery + displayheight / 2; j++) {
       if (areCoordsValid(i, j)) {
         if (!isWalkable(i, j)) {
-          TCOD_console_put_char(console.get(), i, j - playery + displayheight / 2, 0x2593, TCOD_BKGND_NONE);
         } else {
           if (getTile(i, j)->water > 0) {
             // TCOD_console_put_char(console.get(), i, j, 0x2591, TCOD_BKGND_NONE);
@@ -106,18 +130,37 @@ void Map::render(tcod::Console &console, int playerx, int playery) {
             TCOD_console_put_char(console.get(), i, j - playery + displayheight / 2, 0x00, TCOD_BKGND_NONE);
           }
         }
+        if (getTile(i, j)->water > 0) {
+          TCOD_console_put_char_ex(console.get(), i, j - playery + displayheight / 2,
+            0x2591, TCOD_ColorRGB{0, 0, 255}, TCOD_ColorRGB{0, 0, 0});
+        } else {
+          switch (getTile(i, j)->material) {
+            case Material::VACUUM: {
+              TCOD_console_put_char(console.get(), i, j - playery + displayheight / 2, 0x00, TCOD_BKGND_NONE);
+              break;
+            }
+            case Material::ROCK: {
+              TCOD_console_put_char(console.get(), i, j - playery + displayheight / 2, 0x2593, TCOD_BKGND_NONE);
+              break;
+            }
+            case Material::WOOD: {
+              TCOD_console_put_char_ex(console.get(), i, j - playery + displayheight / 2,
+                0x2551, TCOD_ColorRGB{166, 42, 42}, TCOD_ColorRGB{0, 0, 0});
+              break;
+            }
+            case Material::LEAVES: {
+              TCOD_console_put_char_ex(console.get(), i, j - playery + displayheight / 2,
+                '#', TCOD_ColorRGB{0, 255, 0}, TCOD_ColorRGB{0, 0, 0});
+              break;
+            }
+          }
+        }
       }
     }
   }
 }
 
 void Map::tick() {
-  // Water flow
-  // if (tickCount < 70) {
-    // setWater(width / 2, 20, 10);
-    // tickCount++;
-  // }
-  
   // Rain
   tickCount++;
   TCODRandom* rng = TCODRandom::getInstance();
@@ -125,6 +168,7 @@ void Map::tick() {
     setWater(rng->getInt(0, width), 0, 1);
   }
 
+  // Water flow
   if (tickCount % 5 == 0) {
     for (int i = 0; i < width; i++) {
       for (int j = height; j >= 0; j--) {

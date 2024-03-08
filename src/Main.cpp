@@ -17,7 +17,7 @@ int main(int argc, char* argv[]) {
   params.console = console.get();  // Derive the window size from the console size.
   params.tileset = tileset.get();
   params.window_title = "...";
-  params.sdl_window_flags = SDL_WINDOW_MINIMIZED;
+  params.sdl_window_flags = SDL_WINDOW_FULLSCREEN;
   params.vsync = true;
   params.argc = argc;  // This allows some user-control of the context.
   params.argv = argv;
@@ -41,8 +41,8 @@ int main(int argc, char* argv[]) {
     TCOD_console_clear(console.get());
     if (!credits) {
       tcod::print(console, {DISPLAYWIDTH / 50, DISPLAYHEIGHT / 3}, "Derinkuyu\nA subterranean city-building game\nBy Owen McCormick", std::nullopt, std::nullopt);
-      credits = TCOD_console_credits_render_ex(console.get(), DISPLAYWIDTH / 10, DISPLAYHEIGHT / 3 + 10, false, deltaTime * 3);
-      // credits = true;
+      // credits = TCOD_console_credits_render_ex(console.get(), DISPLAYWIDTH / 10, DISPLAYHEIGHT / 3 + 10, false, deltaTime * 3);
+      credits = true;
     } else {
       map->render(console, player->x, player->y);
       for (auto actor : actors) {
@@ -86,12 +86,14 @@ int main(int argc, char* argv[]) {
                 player->x--;
                 player->y--;
               }
+              break;
             }
             case SDL_SCANCODE_KP_9: {
               if (map->isWalkable(player->x + 1, player->y - 1) && map->areCoordsValid(player->x + 1, player->y - 1)) {
                 player->x++;
                 player->y--;
               }
+              break;
             }
             case SDL_SCANCODE_W: {
               if (map->areCoordsValid(player->x, player->y - 1)) map->setWalkable(player->x, player->y - 1, true);
@@ -107,6 +109,14 @@ int main(int argc, char* argv[]) {
             }
             case SDL_SCANCODE_D: {
               if (map->areCoordsValid(player->x + 1, player->y)) map->setWalkable(player-> x + 1, player->y, true);
+              break;
+            }
+            case SDL_SCANCODE_Q: {
+              if (map->areCoordsValid(player->x - 1, player->y - 1)) map->setWalkable(player->x - 1, player->y - 1, true);
+              break;
+            }
+            case SDL_SCANCODE_E: {
+              if (map->areCoordsValid(player->x + 1, player->y - 1)) map->setWalkable(player->x + 1, player->y - 1, true);
               break;
             }
             default: break;
