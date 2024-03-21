@@ -5,5 +5,5 @@
 #include "Map.hpp"
 
 Engine::Engine() {
-  // WIP
+  // WIP - will abstract away some of the stuff in Main and contain a Map object and vector of Actors
 }

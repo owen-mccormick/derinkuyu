@@ -1,9 +1,6 @@
 #include <libtcod.hpp>
-
 #include "Map.hpp"
 #include <algorithm>
-
-int tickCount = 0;
 
 Map::Map(int width, int height, int displaywidth, int displayheight) : width(width),
     height(height), displaywidth(displaywidth), displayheight(displayheight) {
@@ -77,7 +74,7 @@ std::pair<int, int> Map::placePlayer() {
   int x, y;
   do {
     x = rng->getInt(0, width);
-    y = 0;
+    y = 9;
   } while (!isWalkable(x, y));
   return {x, y};
 }
@@ -87,12 +84,13 @@ Map::~Map() {
 }
 
 void Map::setWalkable(int x, int y, bool walk) {
-  tiles[x + y * width].material = walk ? Material::VACUUM : Material::ROCK;
+  TCODRandom* rng = TCODRandom::getInstance();
+  tiles[x + y * width].material = walk ? Material::VACUUM : rng->getInt(0, 100) > 5 * y - 5 * 14 ? Material::DIRT : Material::ROCK;
 }
 
 bool Map::isWalkable(int x, int y) {
   Material material = tiles[x + y * width].material;
-  return material == Material::VACUUM || material == Material::WOOD || material == Material::LEAVES;
+  return areCoordsValid(x, y) && (material == Material::VACUUM || material == Material::WOOD || material == Material::LEAVES);
 }
 
 void Map::setMaterial(int x, int y, Material material) {
@@ -115,42 +113,47 @@ bool Map::areCoordsValid(int x, int y) {
   return x > 0 && x < width && y > 0 && y < height;
 }
 
-void Map::render(tcod::Console &console, int playerx, int playery) {
+void Map::render(tcod::Console &console, int cursorX, int cursorY) {
   // Currently assumes a map where display width specifically is the entire width of the map.
   for (int i = 0; i < displaywidth; i++) {
-    for (int j = playery - displayheight / 2; j < playery + displayheight / 2; j++) {
+    for (int j = cursorY - displayheight / 2; j < cursorY + displayheight / 2; j++) {
       if (areCoordsValid(i, j)) {
         if (!isWalkable(i, j)) {
         } else {
           if (getTile(i, j)->water > 0) {
             // TCOD_console_put_char(console.get(), i, j, 0x2591, TCOD_BKGND_NONE);
-            TCOD_console_put_char_ex(console.get(), i, j - playery + displayheight / 2,
+            TCOD_console_put_char_ex(console.get(), i, j - cursorY + displayheight / 2,
               0x2591, TCOD_ColorRGB{0, 0, 255}, TCOD_ColorRGB{0, 0, 0});
           } else {
-            TCOD_console_put_char(console.get(), i, j - playery + displayheight / 2, 0x00, TCOD_BKGND_NONE);
+            TCOD_console_put_char(console.get(), i, j - cursorY + displayheight / 2, 0x00, TCOD_BKGND_NONE);
           }
         }
         if (getTile(i, j)->water > 0) {
-          TCOD_console_put_char_ex(console.get(), i, j - playery + displayheight / 2,
+          TCOD_console_put_char_ex(console.get(), i, j - cursorY + displayheight / 2,
             0x2591, TCOD_ColorRGB{0, 0, 255}, TCOD_ColorRGB{0, 0, 0});
         } else {
           switch (getTile(i, j)->material) {
             case Material::VACUUM: {
-              TCOD_console_put_char(console.get(), i, j - playery + displayheight / 2, 0x00, TCOD_BKGND_NONE);
+              TCOD_console_put_char(console.get(), i, j - cursorY + displayheight / 2, 0x00, TCOD_BKGND_NONE);
               break;
             }
             case Material::ROCK: {
-              TCOD_console_put_char(console.get(), i, j - playery + displayheight / 2, 0x2593, TCOD_BKGND_NONE);
+              TCOD_console_put_char_ex(console.get(), i, j - cursorY + displayheight / 2, 0x2593, TCOD_ColorRGB{128, 128, 128}, TCOD_ColorRGB{0, 0, 0});
               break;
             }
             case Material::WOOD: {
-              TCOD_console_put_char_ex(console.get(), i, j - playery + displayheight / 2,
+              TCOD_console_put_char_ex(console.get(), i, j - cursorY + displayheight / 2,
                 0x2551, TCOD_ColorRGB{166, 42, 42}, TCOD_ColorRGB{0, 0, 0});
               break;
             }
             case Material::LEAVES: {
-              TCOD_console_put_char_ex(console.get(), i, j - playery + displayheight / 2,
+              TCOD_console_put_char_ex(console.get(), i, j - cursorY + displayheight / 2,
                 '#', TCOD_ColorRGB{0, 255, 0}, TCOD_ColorRGB{0, 0, 0});
+              break;
+            }
+            case Material::DIRT: {
+              TCOD_console_put_char_ex(console.get(), i, j - cursorY + displayheight / 2,
+                0x2593, TCOD_ColorRGB{155, 118, 83}, TCOD_ColorRGB{0, 0, 0});
               break;
             }
           }
@@ -160,9 +163,8 @@ void Map::render(tcod::Console &console, int playerx, int playery) {
   }
 }
 
-void Map::tick() {
+void Map::tick(int tickCount) {
   // Rain
-  tickCount++;
   TCODRandom* rng = TCODRandom::getInstance();
   if (tickCount % 20 == 0) {
     setWater(rng->getInt(0, width), 0, 1);

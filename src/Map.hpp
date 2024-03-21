@@ -5,7 +5,8 @@ enum class Material {
   VACUUM,
   ROCK,
   WOOD,
-  LEAVES
+  LEAVES,
+  DIRT
 };
 
 struct Tile {
@@ -19,14 +20,14 @@ class Map {
   public:
     Map(int width, int height, int displaywidth, int displayheight);
     ~Map();
-    void render(tcod::Console& console, int playerx, int playery);
+    void render(tcod::Console& console, int cursorX, int cursorY);
     void setWalkable(int x, int y, bool walk);
     bool isWalkable(int x, int y);
     void setMaterial(int x, int y, Material material);
     Material getMaterial(int x, int y);
     int getWater(int x, int y);
     void setWater(int x, int y, int amount);
-    void tick();
+    void tick(int tickCount);
     bool areCoordsValid(int x, int y);
     std::pair<int, int> placePlayer();
     int width, height, displaywidth, displayheight;
