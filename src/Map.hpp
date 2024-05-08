@@ -1,12 +1,26 @@
 #pragma once
 #include <libtcod.hpp>
 
-enum class Material {
-  VACUUM,
-  ROCK,
-  WOOD,
-  LEAVES,
-  DIRT
+class Material {
+  public:
+    // Statically declared types of materials; constructor is private. This is all done to do something similar to a Java-style enum.
+    // There may be a better way to do comparison rather than by id
+    static const Material VACUUM;
+    static const Material ROCK;
+    static const Material TRUNK;
+    static const Material LEAVES;
+    static const Material DIRT;
+    static const Material GRASS;
+    static const Material LADDER;
+    bool passable;
+    bool climbable;
+    int ch;
+    int id;
+    TCOD_ColorRGB fg;
+    TCOD_ColorRGB bg;
+  private:
+    Material(bool pass, bool climb, int character, int id, const TCOD_ColorRGB& foreground, const TCOD_ColorRGB& background)
+      : passable(pass), climbable(climb), ch(character), id(id), fg(foreground), bg(background) {}
 };
 
 struct Tile {

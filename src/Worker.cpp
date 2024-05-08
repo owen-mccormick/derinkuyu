@@ -8,7 +8,7 @@
 
 // Worker::Worker(int x, int y) : Actor(x, y, 0x40, TCOD_ColorRGB{255, 255, 0}, TCOD_ColorRGB{0, 0, 0}) {};
 
-void Worker::act(Map* map, int tickCount, std::priority_queue<Order> orders) {
+void Worker::act(Map* map, int tickCount, std::priority_queue<Order> orders, TCODMap* navgrid) {
   if (tickCount % 2 == 0) {
     // Gravity (may make sense to implement this somewhere else)
     if (order.type == OrderType::IDLE) std::cout << "Idle" << std::endl;
@@ -21,12 +21,6 @@ void Worker::act(Map* map, int tickCount, std::priority_queue<Order> orders) {
     } else {
       switch (order.type) {
         case OrderType::DIG: {
-          TCODMap* navgrid = new TCODMap(map->width, map->height);
-          for (int i = 0; i < map->width; i++) {
-            for (int j = 0; j < map->height; j++) {
-              navgrid->setProperties(i, j, map->isWalkable(i, j), map->isWalkable(i, j));
-            }
-          }
           TCODDijkstra dijkstra = TCODDijkstra(navgrid);
           dijkstra.compute(x, y);
           // assert(dijkstra.getDistance(10, 10) != -1.0f);

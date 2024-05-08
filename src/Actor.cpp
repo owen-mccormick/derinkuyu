@@ -2,7 +2,7 @@
 #include "Actor.hpp"
 #include "Map.hpp"
 
-Actor::Actor(int x, int y, int ch, const TCOD_ColorRGB &fg, const TCOD_ColorRGB &bg) : x(x), y(y), ch(ch), fg(fg), bg(bg) {}
+Actor::Actor(int x, int y, int ch, const TCOD_ColorRGB& fg, const TCOD_ColorRGB& bg) : x(x), y(y), ch(ch), fg(fg), bg(bg) {}
 
 // void Actor::act(Map* map) {}
 

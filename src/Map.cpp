@@ -2,6 +2,15 @@
 #include "Map.hpp"
 #include <algorithm>
 
+// Materials (maybe should be done in .hpp)
+const Material Material::VACUUM = Material(true, false, 0x00, 0, TCOD_ColorRGB{0, 0, 0}, TCOD_ColorRGB{0, 0, 0});
+const Material Material::ROCK = Material(false, false, 0x2593, 1, TCOD_ColorRGB{128, 128, 128}, TCOD_ColorRGB{0, 0, 0});
+const Material Material::TRUNK = Material(false, false, 0x2551, 2, TCOD_ColorRGB{166, 42, 42}, TCOD_ColorRGB{0, 0, 0}); 
+const Material Material::LEAVES = Material(true, false, '#', 3, TCOD_ColorRGB{0, 255, 0}, TCOD_ColorRGB{0, 0, 0});
+const Material Material::DIRT = Material(false, false, 0x2593, 4, TCOD_ColorRGB{155, 118, 83}, TCOD_ColorRGB{0, 0, 0});
+const Material Material::GRASS = Material(true, false, '=', 5, TCOD_ColorRGB{0, 255, 0}, TCOD_ColorRGB{0, 0, 0});
+const Material Material::LADDER = Material(true, true, 'H', 6, TCOD_ColorRGB{166, 42, 42}, TCOD_ColorRGB{0, 0, 0});
+
 Map::Map(int width, int height, int displaywidth, int displayheight) : width(width),
     height(height), displaywidth(displaywidth), displayheight(displayheight) {
 
@@ -19,7 +28,7 @@ Map::Map(int width, int height, int displaywidth, int displayheight) : width(wid
     int x = rng->getInt(0, width), y = 13;
     TCOD_line_init_mt(x, y, x + rng->getInt(-1, 1), 5, &data);
     do {
-      setMaterial(x, y, Material::WOOD);
+      setMaterial(x, y, Material::TRUNK);
     } while (!TCOD_line_step_mt(&x, &y, &data));
   }
   // Leaves
@@ -27,12 +36,17 @@ Map::Map(int width, int height, int displaywidth, int displayheight) : width(wid
     for (int j = 0; j < 10; j++) {
       for (int xOff = -1; xOff < 2; xOff++) {
         for (int yOff = -1; yOff < 2; yOff++) {
-          if (areCoordsValid(i + xOff, j + yOff) && getMaterial(i + xOff, j + yOff) == Material::WOOD && getMaterial(i, j) != Material::WOOD) {
+          if (areCoordsValid(i + xOff, j + yOff) && getMaterial(i + xOff, j + yOff).id == Material::TRUNK.id && getMaterial(i, j).id != Material::TRUNK.id) {
             setMaterial(i, j, Material::LEAVES);
           }
         }
       }
     }
+  }
+
+  // Grass
+  for (int k = 0; k < 6; k++) {
+    setMaterial(rng->getInt(0, width), 13, Material::GRASS);
   }
 
   // Cellular automata cave creation based on https://www.roguebasin.com/index.php?title=Cellular_Automata_Method_for_Generating_Random_Cave-Like_Levels
@@ -83,14 +97,14 @@ Map::~Map() {
   delete [] tiles;
 }
 
+// Used in terrain generation
 void Map::setWalkable(int x, int y, bool walk) {
   TCODRandom* rng = TCODRandom::getInstance();
   tiles[x + y * width].material = walk ? Material::VACUUM : rng->getInt(0, 100) > 5 * y - 5 * 14 ? Material::DIRT : Material::ROCK;
 }
 
 bool Map::isWalkable(int x, int y) {
-  Material material = tiles[x + y * width].material;
-  return areCoordsValid(x, y) && (material == Material::VACUUM || material == Material::WOOD || material == Material::LEAVES);
+  return areCoordsValid(x, y) && tiles[x + y * width].material.passable;
 }
 
 void Map::setMaterial(int x, int y, Material material) {
@@ -118,46 +132,14 @@ void Map::render(tcod::Console &console, int cursorX, int cursorY) {
   for (int i = 0; i < displaywidth; i++) {
     for (int j = cursorY - displayheight / 2; j < cursorY + displayheight / 2; j++) {
       if (areCoordsValid(i, j)) {
-        if (!isWalkable(i, j)) {
-        } else {
-          if (getTile(i, j)->water > 0) {
-            // TCOD_console_put_char(console.get(), i, j, 0x2591, TCOD_BKGND_NONE);
+          Tile tile = *getTile(i, j);
+          if (tile.water > 0) {
             TCOD_console_put_char_ex(console.get(), i, j - cursorY + displayheight / 2,
               0x2591, TCOD_ColorRGB{0, 0, 255}, TCOD_ColorRGB{0, 0, 0});
           } else {
-            TCOD_console_put_char(console.get(), i, j - cursorY + displayheight / 2, 0x00, TCOD_BKGND_NONE);
+            TCOD_console_put_char_ex(console.get(), i, j - cursorY + displayheight / 2,
+              tile.material.ch, tile.material.fg, tile.material.bg);
           }
-        }
-        if (getTile(i, j)->water > 0) {
-          TCOD_console_put_char_ex(console.get(), i, j - cursorY + displayheight / 2,
-            0x2591, TCOD_ColorRGB{0, 0, 255}, TCOD_ColorRGB{0, 0, 0});
-        } else {
-          switch (getTile(i, j)->material) {
-            case Material::VACUUM: {
-              TCOD_console_put_char(console.get(), i, j - cursorY + displayheight / 2, 0x00, TCOD_BKGND_NONE);
-              break;
-            }
-            case Material::ROCK: {
-              TCOD_console_put_char_ex(console.get(), i, j - cursorY + displayheight / 2, 0x2593, TCOD_ColorRGB{128, 128, 128}, TCOD_ColorRGB{0, 0, 0});
-              break;
-            }
-            case Material::WOOD: {
-              TCOD_console_put_char_ex(console.get(), i, j - cursorY + displayheight / 2,
-                0x2551, TCOD_ColorRGB{166, 42, 42}, TCOD_ColorRGB{0, 0, 0});
-              break;
-            }
-            case Material::LEAVES: {
-              TCOD_console_put_char_ex(console.get(), i, j - cursorY + displayheight / 2,
-                '#', TCOD_ColorRGB{0, 255, 0}, TCOD_ColorRGB{0, 0, 0});
-              break;
-            }
-            case Material::DIRT: {
-              TCOD_console_put_char_ex(console.get(), i, j - cursorY + displayheight / 2,
-                0x2593, TCOD_ColorRGB{155, 118, 83}, TCOD_ColorRGB{0, 0, 0});
-              break;
-            }
-          }
-        }
       }
     }
   }
