@@ -5,7 +5,7 @@
 // Materials (maybe should be done in .hpp)
 const Material Material::VACUUM = Material(true, false, 0x00, 0, TCOD_ColorRGB{0, 0, 0}, TCOD_ColorRGB{0, 0, 0});
 const Material Material::ROCK = Material(false, false, 0x2593, 1, TCOD_ColorRGB{128, 128, 128}, TCOD_ColorRGB{0, 0, 0});
-const Material Material::TRUNK = Material(false, false, 0x2551, 2, TCOD_ColorRGB{166, 42, 42}, TCOD_ColorRGB{0, 0, 0}); 
+const Material Material::TRUNK = Material(true, false, 0x2551, 2, TCOD_ColorRGB{166, 42, 42}, TCOD_ColorRGB{0, 0, 0}); 
 const Material Material::LEAVES = Material(true, false, '#', 3, TCOD_ColorRGB{0, 255, 0}, TCOD_ColorRGB{0, 0, 0});
 const Material Material::DIRT = Material(false, false, 0x2593, 4, TCOD_ColorRGB{155, 118, 83}, TCOD_ColorRGB{0, 0, 0});
 const Material Material::GRASS = Material(true, false, '=', 5, TCOD_ColorRGB{0, 255, 0}, TCOD_ColorRGB{0, 0, 0});
@@ -124,7 +124,7 @@ void Map::setWater(int x, int y, int amount) {
 }
 
 bool Map::areCoordsValid(int x, int y) {
-  return x > 0 && x < width && y > 0 && y < height;
+  return x >= 0 && x < width && y >= 0 && y < height;
 }
 
 void Map::render(tcod::Console &console, int cursorX, int cursorY) {

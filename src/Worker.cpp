@@ -3,17 +3,18 @@
 #include "Map.hpp"
 #include <queue>
 #include <iostream>
-#include "Order.hpp"
 #include <cassert>
+#include "Order.hpp"
+#include "AStar.hpp"
 
-// Worker::Worker(int x, int y) : Actor(x, y, 0x40, TCOD_ColorRGB{255, 255, 0}, TCOD_ColorRGB{0, 0, 0}) {};
+Worker::Worker(int x, int y) : Actor(x, y, 0x40, TCOD_ColorRGB{255, 255, 0}, TCOD_ColorRGB{0, 0, 0}), order(Order(OrderType::IDLE, 0, 0, 0)) {};
 
 void Worker::act(Map* map, int tickCount, std::priority_queue<Order> orders, TCODMap* navgrid) {
   if (tickCount % 2 == 0) {
     // Gravity (may make sense to implement this somewhere else)
-    if (order.type == OrderType::IDLE) std::cout << "Idle" << std::endl;
+    // if (order.type == OrderType::IDLE) std::cout << "Idle" << std::endl;
     // if (order.type == OrderType::DIG) std::cout << "Dig" << std::endl;
-    if (map->areCoordsValid(x, y + 1) && map->isWalkable(x, y + 1)) {
+    if (map->areCoordsValid(x, y + 1) && map->isWalkable(x, y + 1) && !map->getMaterial(x, y).climbable) {
       y++;
     } else if (order.type == OrderType::IDLE && !orders.empty()) {
       order = orders.top();
@@ -21,20 +22,11 @@ void Worker::act(Map* map, int tickCount, std::priority_queue<Order> orders, TCO
     } else {
       switch (order.type) {
         case OrderType::DIG: {
-          TCODDijkstra dijkstra = TCODDijkstra(navgrid);
-          dijkstra.compute(x, y);
-          // assert(dijkstra.getDistance(10, 10) != -1.0f);
-          int newX = 0;
-          int newY = 0;
-          if (dijkstra.setPath(order.x, order.y) && dijkstra.walk(&newX, &newY)) {
-            // std::cout << "Walk success: " << dijkstra.walk(&newX, &newY) << std::endl;
-            // std::cout << "New X: " << newX << std::endl;
-            // std::cout << "New Y: " << newY << std::endl;
-            std::cout << "Walking..." << std::endl;
-            if (x < newX /*&& map->isWalkable(x + 1, y)*/) x++;
-            if (x > newX /*&& map->isWalkable(x - 1, y)*/) x--;
-            if (y > newY /*&& map->isWalkable(x, y - 1)*/) y--;
-            if (y < newY /*&& map->isWalkable(x, y + 1)*/) y++;
+          AStar astar = AStar(map, x, y, order.x, order.y);
+          if (astar.calculate()) {
+            std::pair<int, int> moveTo = astar.walk();
+            x = moveTo.first;
+            y = moveTo.second;
           }
           if (x == order.x && y == order.y) {
             order = Order(OrderType::IDLE, 0, 0, 0);

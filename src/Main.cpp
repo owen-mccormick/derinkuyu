@@ -20,7 +20,7 @@ int main(int argc, char* argv[]) {
   params.console = console.get();  // Derive the window size from the console size.
   params.tileset = tileset.get();
   params.window_title = "...";
-  params.sdl_window_flags = SDL_WINDOW_FULLSCREEN;
+  params.sdl_window_flags = SDL_WINDOW_MINIMIZED;
   params.vsync = true;
   params.argc = argc;  // This allows some user-control of the context.
   params.argv = argv;
@@ -37,11 +37,11 @@ int main(int argc, char* argv[]) {
   Map* map = new Map(WIDTH, HEIGHT, DISPLAYWIDTH, DISPLAYHEIGHT);
   std::vector<Worker*> actors;
   Worker* worker0 = new Worker(map->placePlayer().first, map->placePlayer().second);
-  Worker* worker1 = new Worker(map->placePlayer().first, map->placePlayer().second);
-  Worker* worker2 = new Worker(map->placePlayer().first, map->placePlayer().second);
+  // Worker* worker1 = new Worker(map->placePlayer().first, map->placePlayer().second);
+  // Worker* worker2 = new Worker(map->placePlayer().first, map->placePlayer().second);
   actors.push_back(worker0);
-  actors.push_back(worker1);
-  actors.push_back(worker2);
+  // actors.push_back(worker1);
+  // actors.push_back(worker2);
   std::priority_queue<Order> taskQueue = std::priority_queue<Order>();
 
   // std::pair<int, int> playerPos = map->placePlayer();
@@ -53,8 +53,8 @@ int main(int argc, char* argv[]) {
     TCOD_console_clear(console.get());
     if (!credits) {
       tcod::print(console, {DISPLAYWIDTH / 50, DISPLAYHEIGHT / 3}, "Derinkuyu\nA subterranean city-building game\nBy Owen McCormick", std::nullopt, std::nullopt);
-      credits = TCOD_console_credits_render_ex(console.get(), DISPLAYWIDTH / 10, DISPLAYHEIGHT / 3 + 10, false, deltaTime * 3);
-      // credits = true;
+      // credits = TCOD_console_credits_render_ex(console.get(), DISPLAYWIDTH / 10, DISPLAYHEIGHT / 3 + 10, false, deltaTime * 3);
+      credits = true;
     } else {
       map->render(console, cursorX, cursorY);
       for (auto actor : actors) {
@@ -63,6 +63,7 @@ int main(int argc, char* argv[]) {
       if (tickCount % 4 > 1) tcod::print(console, {cursorX, DISPLAYHEIGHT / 2}, "X", TCOD_ColorRGB{255, 255, 255}, std::nullopt);
       // Water density display
       // tcod::print(console, {0, 0}, std::to_string(map->getWater(cursorX, cursorY)), std::nullopt, std::nullopt);
+      tcod::print(console, {0, 0}, std::to_string(cursorX) + ", " + std::to_string(cursorY), std::nullopt, std::nullopt);
     }
 
     context.present(console);  // Updates the visible display.
@@ -72,9 +73,10 @@ int main(int argc, char* argv[]) {
     TCODMap* navgrid = new TCODMap(map->width, map->height);
     for (int i = 0; i < map->width; i++) {
       for (int j = 0; j < map->height; j++) {
-        navgrid->setProperties(i, j, map->isWalkable(i, j), map->isWalkable(i, j));
+        navgrid->setProperties(i, j, map->isWalkable(i, j), map->isWalkable(i, j) && !map->isWalkable(i, j + 1));
       }
     }
+    // Set tiles in the air as non-navigable
     for (auto actor : actors) {
       navgrid->setProperties(actor->x, actor->y, false, false);
     }
@@ -109,12 +111,16 @@ int main(int argc, char* argv[]) {
             case SDL_SCANCODE_SPACE: {
               // worker->order = Order(OrderType::IDLE, 0, 0, 0);
               worker0->order = Order(OrderType::DIG, 0, cursorX, cursorY);
-              worker1->order = Order(OrderType::DIG, 0, cursorX, cursorY);
-              worker2->order = Order(OrderType::DIG, 0, cursorX, cursorY);
+              // worker1->order = Order(OrderType::DIG, 0, cursorX, cursorY);
+              // worker2->order = Order(OrderType::DIG, 0, cursorX, cursorY);
               break;
             }
             case SDL_SCANCODE_BACKSPACE: {
               map->setMaterial(cursorX, cursorY, Material::VACUUM);
+              break;
+            }
+            case SDL_SCANCODE_B: {
+              map->setMaterial(cursorX, cursorY, Material::LADDER);
               break;
             }
             // case SDL_SCANCODE_KP_7: {
