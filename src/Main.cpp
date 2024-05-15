@@ -19,7 +19,7 @@ int main(int argc, char* argv[]) {
   params.tcod_version = TCOD_COMPILEDVERSION;  // This is required.
   params.console = console.get();  // Derive the window size from the console size.
   params.tileset = tileset.get();
-  params.window_title = "...";
+  params.window_title = "Derinkuyu";
   params.sdl_window_flags = SDL_WINDOW_MINIMIZED;
   params.vsync = true;
   params.argc = argc;  // This allows some user-control of the context.
@@ -53,8 +53,8 @@ int main(int argc, char* argv[]) {
     TCOD_console_clear(console.get());
     if (!credits) {
       tcod::print(console, {DISPLAYWIDTH / 50, DISPLAYHEIGHT / 3}, "Derinkuyu\nA subterranean city-building game\nBy Owen McCormick", std::nullopt, std::nullopt);
-      // credits = TCOD_console_credits_render_ex(console.get(), DISPLAYWIDTH / 10, DISPLAYHEIGHT / 3 + 10, false, deltaTime * 3);
-      credits = true;
+      credits = TCOD_console_credits_render_ex(console.get(), DISPLAYWIDTH / 10, DISPLAYHEIGHT / 3 + 10, false, deltaTime);
+      // credits = true;
     } else {
       map->render(console, cursorX, cursorY, tickCount);
       for (auto actor : actors) {
@@ -62,7 +62,7 @@ int main(int argc, char* argv[]) {
         if (map->getWater(actor->getX(), actor->getY()) == 0 || tickCount % 48 >= 24)
           actor->render(console, cursorX, cursorY, DISPLAYWIDTH, DISPLAYHEIGHT, map->getWater(actor->getX(), actor->getY()));
       }
-      if (tickCount % 36 >= 0) tcod::print(console, {cursorX, DISPLAYHEIGHT / 2}, "X", TCOD_ColorRGB{255, 255, 255}, std::nullopt);
+      if (tickCount % 36 >= 0) tcod::print(console, {cursorX, DISPLAYHEIGHT / 2}, "X", TCOD_ColorRGB{255, 255, 0}, std::nullopt);
       // Water density display
       // tcod::print(console, {0, 0}, std::to_string(map->getWater(cursorX, cursorY)), std::nullopt, std::nullopt);
       tcod::print(console, {0, 0}, std::to_string(cursorX) + ", " + std::to_string(cursorY), std::nullopt, std::nullopt);

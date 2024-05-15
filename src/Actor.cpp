@@ -11,7 +11,10 @@ void Actor::render(tcod::Console& console, int cursorX, int cursorY, int display
 }
 
 void Actor::render(tcod::Console& console, int cursorX, int cursorY, int displaywidth, int displayheight, bool water) const {
-  TCOD_console_put_char_ex(console.get(), x, y - cursorY + displayheight / 2, ch, fg, water ? TCOD_ColorRGB{0, 0, 255} : bg);
+  // Changes background based on depth and water
+  TCOD_console_put_char_ex(console.get(), x, y - cursorY + displayheight / 2,
+    ch, fg, !water ? TCOD_ColorRGB{ bg.r - 4 * y, bg.g - 4 * y, bg.b - 4 * y } : TCOD_ColorRGB{0, 0, 125}); 
+
 }
 
 void Actor::moveTo(Map* map, int x, int y) {

@@ -3,13 +3,13 @@
 #include <algorithm>
 
 // Materials (maybe should be done in .hpp)
-const Material Material::VACUUM = Material(true, false, 0x00, 0, TCOD_ColorRGB{0, 0, 0}, TCOD_ColorRGB{0, 0, 0});
-const Material Material::ROCK = Material(false, false, 0x2593, 1, TCOD_ColorRGB{128, 128, 128}, TCOD_ColorRGB{0, 0, 0});
-const Material Material::TRUNK = Material(true, false, 0x2551, 2, TCOD_ColorRGB{166, 42, 42}, TCOD_ColorRGB{0, 0, 0}); 
-const Material Material::LEAVES = Material(true, false, '#', 3, TCOD_ColorRGB{0, 255, 0}, TCOD_ColorRGB{0, 0, 0});
-const Material Material::DIRT = Material(false, false, 0x2593, 4, TCOD_ColorRGB{155, 118, 83}, TCOD_ColorRGB{0, 0, 0});
-const Material Material::GRASS = Material(true, false, '=', 5, TCOD_ColorRGB{0, 255, 0}, TCOD_ColorRGB{0, 0, 0});
-const Material Material::LADDER = Material(true, true, 'H', 6, TCOD_ColorRGB{166, 42, 42}, TCOD_ColorRGB{0, 0, 0});
+const Material Material::VACUUM = Material(true, false, 0x00, 0, TCOD_ColorRGB{0, 0, 0}, TCOD_ColorRGB{250, 250, 250});
+const Material Material::ROCK = Material(false, false, 0x2593, 1, TCOD_ColorRGB{100, 85, 75}, TCOD_ColorRGB{250, 250, 250});
+const Material Material::TRUNK = Material(true, false, 0x2551, 2, TCOD_ColorRGB{166, 42, 42}, TCOD_ColorRGB{250, 250, 250}); 
+const Material Material::LEAVES = Material(true, false, '#', 3, TCOD_ColorRGB{0, 255, 0}, TCOD_ColorRGB{250, 250, 250});
+const Material Material::DIRT = Material(false, false, 0x2593, 4, TCOD_ColorRGB{155, 118, 83}, TCOD_ColorRGB{250, 250, 250});
+const Material Material::GRASS = Material(true, false, '=', 5, TCOD_ColorRGB{0, 255, 0}, TCOD_ColorRGB{250, 250, 250});
+const Material Material::LADDER = Material(true, true, 'H', 6, TCOD_ColorRGB{166, 42, 42}, TCOD_ColorRGB{250, 250, 250});
 
 Map::Map(int width, int height, int displaywidth, int displayheight) : width(width),
     height(height), displaywidth(displaywidth), displayheight(displayheight) {
@@ -149,10 +149,13 @@ void Map::render(tcod::Console &console, int cursorX, int cursorY, int tickCount
           Tile tile = *getTile(i, j);
           if (tile.water > 0 && (tickCount % 48 < 24 || tile.material.id == Material::VACUUM.id)) {
             TCOD_console_put_char_ex(console.get(), i, j - cursorY + displayheight / 2,
-              0x2588, TCOD_ColorRGB{0, 0, 0}, TCOD_ColorRGB{0, 0, 255});
+              0x2588, TCOD_ColorRGB{0, 0, 0}, TCOD_ColorRGB{0, 0, 125});
           } else {
+            // Flicker with blue background in water, and also shade based on depth
+            // TODO - fix warning
             TCOD_console_put_char_ex(console.get(), i, j - cursorY + displayheight / 2,
-              tile.material.ch, tile.material.fg, tile.water == 0 ? tile.material.bg : TCOD_ColorRGB{0, 0, 255}); // Flicker with blue background in water
+              tile.material.ch, tile.material.fg, tile.water == 0
+              ? TCOD_ColorRGB{ tile.material.bg.r - 4 * j, tile.material.bg.g - 4 * j, tile.material.bg.b - 4 * j } : TCOD_ColorRGB{0, 0, 125}); 
           }
       }
     }
