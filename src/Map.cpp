@@ -107,6 +107,20 @@ bool Map::isWalkable(int x, int y) {
   return areCoordsValid(x, y) && tiles[x + y * width].material.passable;
 }
 
+bool Map::isActorWalkable(int x, int y) {
+  return areCoordsValid(x, y) && tiles[x + y * width].material.passable && !tiles[x + y * width].actorOccupied;
+}
+
+
+// For allowing actors to path around other actors. May be better to combine into one method that takes a boolean
+void Map::registerActorPose(int x, int y) {
+  tiles[x + width * y].actorOccupied = true;
+}
+
+void Map::deregisterActorPose(int x, int y) {
+  tiles[x + width * y].actorOccupied = false;
+}
+
 void Map::setMaterial(int x, int y, Material material) {
   tiles[x + y * width].material = material;
 }
@@ -127,18 +141,18 @@ bool Map::areCoordsValid(int x, int y) {
   return x >= 0 && x < width && y >= 0 && y < height;
 }
 
-void Map::render(tcod::Console &console, int cursorX, int cursorY) {
+void Map::render(tcod::Console &console, int cursorX, int cursorY, int tickCount) {
   // Currently assumes a map where display width specifically is the entire width of the map.
   for (int i = 0; i < displaywidth; i++) {
     for (int j = cursorY - displayheight / 2; j < cursorY + displayheight / 2; j++) {
       if (areCoordsValid(i, j)) {
           Tile tile = *getTile(i, j);
-          if (tile.water > 0) {
+          if (tile.water > 0 && (tickCount % 48 < 24 || tile.material.id == Material::VACUUM.id)) {
             TCOD_console_put_char_ex(console.get(), i, j - cursorY + displayheight / 2,
-              0x2591, TCOD_ColorRGB{0, 0, 255}, TCOD_ColorRGB{0, 0, 0});
+              0x2588, TCOD_ColorRGB{0, 0, 0}, TCOD_ColorRGB{0, 0, 255});
           } else {
             TCOD_console_put_char_ex(console.get(), i, j - cursorY + displayheight / 2,
-              tile.material.ch, tile.material.fg, tile.material.bg);
+              tile.material.ch, tile.material.fg, tile.water == 0 ? tile.material.bg : TCOD_ColorRGB{0, 0, 255}); // Flicker with blue background in water
           }
       }
     }

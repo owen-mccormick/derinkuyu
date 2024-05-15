@@ -42,21 +42,27 @@ std::vector<Node*> AStar::getNeighbors(Node* node) {
   int dx[2] = {-1, 1};
   int dy[3] = {-1, 0};
 
-  // Nodes in the air are linked to nodes below themselves
-  if (map->isWalkable(node->x, node->y + 1) && !map->getMaterial(node->x, node->y).climbable) {
+  // Nodes in the air are linked only to nodes below themselves unless they are ladders
+  if (map->isActorWalkable(node->x, node->y + 1) && !map->getMaterial(node->x, node->y).climbable) {
     std::cout << "Detected fall neighbor (" << node->x << ", " << node->y + 1 << ") of node (" << node->x << ", " << node->y << ")\n";
     result.push_back(&nodes[node->x + (node->y + 1) * map->width]);
   } else {
     // Cycle through dx and dy combination neighbors
     for (int i = 0; i < 2; i++) {
       for (int j = 0; j < 2; j++) {
-        if (map->isWalkable(node->x + dx[i], node->y + dy[j])) {
+        if (map->isActorWalkable(node->x + dx[i], node->y + dy[j])) {
           std::cout << "Detected neighbor (" << node->x + dx[i] << ", " << node->y + dy[j] << ") of node (" << node->x << ", " << node->y << ")\n";
           result.push_back(&nodes[node->x + dx[i] + map->width * (node->y + dy[j])]);
         }
       }
     }
-    // TODO - ladders should be accessible from below
+    // Ladders are accessible from below and above
+    if (map->isActorWalkable(node->x, node->y - 1) && map->getMaterial(node->x, node->y - 1).climbable) {
+      result.push_back(&nodes[node->x + map->width * (node->y - 1)]);
+    }
+    if (map->isActorWalkable(node->x, node->y + 1) && map->getMaterial(node->x, node->y + 1).climbable) {
+      result.push_back(&nodes[node->x + map->width * (node->y + 1)]);
+    }
   }
   return result;
 }
@@ -66,6 +72,7 @@ bool AStar::calculate() {
   do {
     if (openQueue.size() == 0) {
       // If the queue is empty, there's no possible path
+      std::cout << "No path found" << std::endl;
       return false;
     }
     Node* current = openQueue.top();
@@ -75,7 +82,7 @@ bool AStar::calculate() {
     current->state = NodeState::CLOSED;
 
     if (current->x == endX && current->y == endY) {
-      // std::cout << "Found goal" << std::endl;
+      std::cout << "Found goal" << std::endl;
       return true;
     }
 
@@ -102,10 +109,14 @@ std::pair<int, int> AStar::walk() {
 }
 
 std::pair<int, int> AStar::walk(Node* node, Node* child) {
-  if (node->bestParent->bestParent == nullptr) {
-    if (child != nullptr) child->bestParent = nullptr;
-    return std::pair<int, int>(node->x, node->y);
+  if (node->bestParent != nullptr) {
+    if (node->bestParent->bestParent == nullptr) {
+      if (child != nullptr) child->bestParent = nullptr;
+      return std::pair<int, int>(node->x, node->y);
+    } else {
+      return walk(node->bestParent, node);
+    }
   } else {
-    return walk(node->bestParent, node);
+    return std::pair<int, int>(node->x, node->y);
   }
 }

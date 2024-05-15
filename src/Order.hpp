@@ -2,7 +2,7 @@
 
 // Something a worker is assigned to do at a certain priority
 enum class OrderType {
-  DIG,
+  MOVE,
   BUILD,
   IDLE
 };
