@@ -1,6 +1,7 @@
 #include <libtcod.hpp>
 #include "Map.hpp"
 #include <algorithm>
+#include <iostream>
 
 // Materials (maybe should be done in .hpp)
 const Material Material::VACUUM = Material(true, false, 0x00, 0, TCOD_ColorRGB{0, 0, 0}, TCOD_ColorRGB{250, 250, 250});
@@ -11,11 +12,16 @@ const Material Material::DIRT = Material(false, false, 0x2593, 4, TCOD_ColorRGB{
 const Material Material::GRASS = Material(true, false, '=', 5, TCOD_ColorRGB{0, 255, 0}, TCOD_ColorRGB{250, 250, 250});
 const Material Material::LADDER = Material(true, true, 'H', 6, TCOD_ColorRGB{166, 42, 42}, TCOD_ColorRGB{250, 250, 250});
 
-Map::Map(int width, int height, int displaywidth, int displayheight) : width(width),
-    height(height), displaywidth(displaywidth), displayheight(displayheight) {
+Map::Map(int width, int height, int displayWidth, int displayHeight) : width(width),
+    height(height), displayWidth(displayWidth), displayHeight(displayHeight) {
 
   tiles = new Tile[width * height];
   TCODRandom* rng = TCODRandom::getInstance();
+
+  // Sunlight
+  for (int i = 0; i < width; i++) {
+    tiles[i + width].emitsLight = true;
+  }
 
   // Surface layer
   for (int i = 0; i < width; i++) {
@@ -142,20 +148,64 @@ bool Map::areCoordsValid(int x, int y) {
 }
 
 void Map::render(tcod::Console &console, int cursorX, int cursorY, int tickCount) {
+
+  // Updates light
+  // TODO - make this work with arbirary light source tiles instead of just raycasting down from the top of the map
+  // for (int i = 0; i < width; i++) {
+    // for (int j = 0; j < height; j++) {
+      // if (getTile(i, j)->material.passable) {
+        // getTile(i, j)->light = 255 - 2 * j;
+      // } else {
+        // getTile(i, j)->light = 0;
+        // break;
+      // }
+    // }
+  // }
+  // std::vector<std::pair<int, int>> lightSources = std::vector<std::pair<int, int>>();
+  // for (int i = 0; i < width; i++) {
+    // for (int j = 0; j < height; j++) {
+      // if (getTile(i, j)->emitsLight) lightSources.push_back(std::pair<int, int>(i, j));
+    // }
+  // }
+  // for (int i = 0; i < width; i++) {
+    // for (int j = 0; j < height; j++) {
+      // if (getTile(i, j)->material.passable) {
+        // bool rayClear = true;
+        // for (int sourceX = 0; sourceX < width; sourceX++) {
+          // for (int sourceY = 0; sourceY < height; sourceY++) {
+            // if (getTile(sourceX, sourceY)->emitsLight) {
+              // TCOD_bresenham_data_t data;
+              // int x = i, y = j, distance = 0;
+              // TCOD_line_init_mt(i, j, sourceX, sourceY, &data);
+              // do {
+                // rayClear &= getTile(x, y)->material.passable;
+                // distance++;
+              // } while (!TCOD_line_step_mt(&x, &y, &data));
+              // if (getTile(i, j)->light == 0 && rayClear) { getTile(i, j)->light = 255 - 5 * distance; }
+            // }
+          // }
+        // }
+      // }
+    // }
+  // }
+  for (int i = 0; i < width; i++) {
+    for (int j = 0; j < height; j++) {
+      getTile(i, j)->light = 255 - 3 * j;
+    }
+  }
   // Currently assumes a map where display width specifically is the entire width of the map.
-  for (int i = 0; i < displaywidth; i++) {
-    for (int j = cursorY - displayheight / 2; j < cursorY + displayheight / 2; j++) {
+  for (int i = 0; i < displayWidth; i++) {
+    for (int j = cursorY - displayHeight / 2; j < cursorY + displayHeight / 2; j++) {
       if (areCoordsValid(i, j)) {
           Tile tile = *getTile(i, j);
           if (tile.water > 0 && (tickCount % 48 < 24 || tile.material.id == Material::VACUUM.id)) {
-            TCOD_console_put_char_ex(console.get(), i, j - cursorY + displayheight / 2,
+            TCOD_console_put_char_ex(console.get(), i, j - cursorY + displayHeight / 2,
               0x2588, TCOD_ColorRGB{0, 0, 0}, TCOD_ColorRGB{0, 0, 125});
           } else {
             // Flicker with blue background in water, and also shade based on depth
-            // TODO - fix warning
-            TCOD_console_put_char_ex(console.get(), i, j - cursorY + displayheight / 2,
+            TCOD_console_put_char_ex(console.get(), i, j - cursorY + displayHeight / 2,
               tile.material.ch, tile.material.fg, tile.water == 0
-              ? TCOD_ColorRGB{ tile.material.bg.r - 4 * j, tile.material.bg.g - 4 * j, tile.material.bg.b - 4 * j } : TCOD_ColorRGB{0, 0, 125}); 
+              ? TCOD_ColorRGB{ tile.light, tile.light, tile.light } : TCOD_ColorRGB{0, 0, 125}); 
           }
       }
     }
@@ -165,32 +215,63 @@ void Map::render(tcod::Console &console, int cursorX, int cursorY, int tickCount
 void Map::tick(int tickCount) {
   // Rain
   TCODRandom* rng = TCODRandom::getInstance();
-  if (tickCount % 20 == 0) {
+  if (tickCount % 8 == 0) {
     setWater(rng->getInt(0, width), 0, 1);
   }
 
+  // Reset updated flag
+  for (int i = 0; i < width; i++) {
+    for (int j = 0; j < height; j++) {
+      getTile(i, j)->hasBeenUpdated = false;
+    }
+  }
+
   // Water flow
-  if (tickCount % 5 == 0) {
-    for (int i = 0; i < width; i++) {
-      for (int j = height; j >= 0; j--) {
-        // Traverse neighboring tiles in the right order.
-        int xOffs[3] = {0, 1, -1};
-        int yOffs[2] = {1, 0};
-        for (int n = 0; n < 3; n++) {
-          int xOff = xOffs[n];
-          for (int m = 0; m < 2; m++) {
-            int yOff = yOffs[m];
-            if (isWalkable(i + xOff, j + yOff) && getWater(i, j) > getWater(i + xOff, j + yOff) && i + xOff >= 0
-                && i + xOff <= width && j + yOff >= 0 && j + yOff <= height) {
-              // int flowAmount = std::min(getWater(i, j), 100 - getWater(i + xOff, j + yOff));
-              // double flowAmount = (getWater(i, j) - getWater(i + xOff, j + yOff)) / 2;
-              int flowAmount = getWater(i, j) > 0 ? 1 : 0;
-              // double flowAmount = (yOff == 0 ? (getWater(i, j) - getWater(i + xOff, j + yOff)) / 2 : std::min(getWater(i, j), 100 - getWater(i + xOff, j + yOff)));
-              setWater(i, j, getWater(i, j) - flowAmount);
-              setWater(i + xOff, j + yOff, getWater(i + xOff, j + yOff) + flowAmount);
-            }
+  for (int i = 0; i < width; i++) {
+    for (int j = height; j >= 0; j--) {
+
+      // Water with no neighbors may evaporate
+      int evaporateXOffs[3] = {-1, 0, 1};
+      int evaporateYOffs[3] = {-1, 0, 1};
+      int waterNeighbors = 0;
+      for (int evaporateX = 0; evaporateX < 3; evaporateX++) {
+        for (int evaporateY = 0; evaporateY < 3; evaporateY++) {
+          if (getWater(i + evaporateXOffs[evaporateX], j + evaporateYOffs[evaporateY]) > 0) {
+            waterNeighbors++;
           }
         }
+      }
+      if (waterNeighbors < 2 && rng->getInt(0, 90) == 0 && !isWalkable(i, j + 1)) setWater(i, j, 0);
+
+      if (tickCount % 10 == (j % 10)) { // Update layers out of phase with one another
+        if (!getTile(i, j)->hasBeenUpdated) {
+          // Traverse neighboring tiles in the right order.
+          // int xOffs[3] = {0, (j % 2 == 0) ? 1 : -1, (j % 2 == 0) ? -1 : 1};
+          bool migratesHorizontally = true;//(areCoordsValid(i, j + 1) && getWater(i, j + 1) > 0);
+          bool leftFirst = /*getWater(i + 1, j) > 0 && getWater(i - 1, j) == 0;*/rng->getInt(0, 1) == 0;
+          int xOffs[3] = {0, migratesHorizontally ? ((leftFirst) ? -1 : 1) : 0, migratesHorizontally ? ((leftFirst) ? 1 : -1) : 0};
+          // int xOffs[3] = {0, 1, -1};
+          int yOffs[2] = {1, 0};
+          for (int n = 0; n < 3; n++) {
+            int xOff = xOffs[n];
+            for (int m = 0; m < 2; m++) {
+              int yOff = yOffs[m];
+              if ((isWalkable(i + xOff, j + yOff) && getWater(i, j) > getWater(i + xOff, j + yOff) && !getTile(i + xOff, j + yOff)->hasBeenUpdated)) {
+                getTile(i + xOff, j + yOff)->hasBeenUpdated = true;
+                getTile(i, j)->hasBeenUpdated = true;
+                // int flowAmount = std::min(getWater(i, j), 100 - getWater(i + xOff, j + yOff));
+                // double flowAmount = (getWater(i, j) - getWater(i + xOff, j + yOff)) / 2;
+                int flowAmount = getWater(i, j) > 0 ? 1 : 0;
+                // double flowAmount = (yOff == 0 ? (getWater(i, j) - getWater(i + xOff, j + yOff)) / 2 : std::min(getWater(i, j), 100 - getWater(i + xOff, j + yOff)));
+                setWater(i, j, 0);
+                setWater(i + xOff, j + yOff, 1);
+              } else if (!areCoordsValid(i + xOff, j + yOff)) { // Water can flow off map
+                getTile(i, j)->hasBeenUpdated = true;
+                setWater(i, j, 0);
+              }
+            }
+          }
+       }
       }
     }
   }

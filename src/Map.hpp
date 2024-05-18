@@ -26,15 +26,17 @@ class Material {
 
 struct Tile {
   Material material;
-  // Water amount between 0 and 100
-  int water;
+  int water; // 0 to 100
+  uint8_t light; // 0 to 255
   bool actorOccupied;
-  Tile() : material(Material::VACUUM), water(0), actorOccupied(false) {};
+  bool emitsLight;
+  bool hasBeenUpdated;
+  Tile() : material(Material::VACUUM), water(0), light(0), actorOccupied(false), emitsLight(false), hasBeenUpdated(false) {};
 };
 
 class Map {
   public:
-    Map(int width, int height, int displaywidth, int displayheight);
+    Map(int width, int height, int displayWidth, int displayHeight);
     ~Map();
     void render(tcod::Console& console, int cursorX, int cursorY, int tickCount);
     void setWalkable(int x, int y, bool walk);
@@ -49,7 +51,7 @@ class Map {
     void registerActorPose(int x, int y);
     void deregisterActorPose(int x, int y);
     std::pair<int, int> placePlayer();
-    int width, height, displaywidth, displayheight;
+    int width, height, displayWidth, displayHeight;
   protected:
     Tile* tiles;
     Tile* getTile(int x, int y);

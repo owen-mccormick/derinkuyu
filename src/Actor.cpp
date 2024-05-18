@@ -2,19 +2,20 @@
 #include "Actor.hpp"
 #include "Map.hpp"
 
-Actor::Actor(int x, int y, int ch, const TCOD_ColorRGB& fg, const TCOD_ColorRGB& bg) : x(x), y(y), ch(ch), fg(fg), bg(bg) {}
+Actor::Actor(int x, int y, char ch, const TCOD_ColorRGB& fg) : x(x), y(y), ch(ch), fg(fg) {}
 
-// void Actor::act(Map* map) {}
-
-void Actor::render(tcod::Console& console, int cursorX, int cursorY, int displaywidth, int displayheight) const {
-  render(console, cursorX, cursorY, displaywidth, displayheight, false);
+void Actor::render(tcod::Console& console, int cursorX, int cursorY, int displayWidth, int displayHeight) const {
+  render(console, cursorX, cursorY, displayWidth, displayHeight, false);
 }
 
-void Actor::render(tcod::Console& console, int cursorX, int cursorY, int displaywidth, int displayheight, bool water) const {
+void Actor::render(tcod::Console& console, int cursorX, int cursorY, int displayWidth, int displayHeight, bool water) const {
   // Changes background based on depth and water
-  TCOD_console_put_char_ex(console.get(), x, y - cursorY + displayheight / 2,
-    ch, fg, !water ? TCOD_ColorRGB{ bg.r - 4 * y, bg.g - 4 * y, bg.b - 4 * y } : TCOD_ColorRGB{0, 0, 125}); 
-
+  // The 'if' is necessary because ?: can't choose between a color and nullopt
+  if (water) {
+    tcod::print(console, {x, y - cursorY + displayHeight / 2}, std::string(1, ch), fg, TCOD_ColorRGB{0, 0, 125});
+  } else {
+    tcod::print(console, {x, y - cursorY + displayHeight / 2}, std::string(1, ch), fg, std::nullopt);
+  }
 }
 
 void Actor::moveTo(Map* map, int x, int y) {

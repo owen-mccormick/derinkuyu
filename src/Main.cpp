@@ -9,10 +9,10 @@
 
 int main(int argc, char* argv[]) {
   static int tickCount = 0;
-  static constexpr int WIDTH = 50;
-  static constexpr int HEIGHT = 60;
-  static constexpr int DISPLAYWIDTH = 50;
-  static constexpr int DISPLAYHEIGHT = 30;
+  static constexpr int WIDTH = 75;
+  static constexpr int HEIGHT = 86;
+  static constexpr int DISPLAYWIDTH = 75;
+  static constexpr int DISPLAYHEIGHT = 45;
   auto console = tcod::Console{DISPLAYWIDTH, DISPLAYHEIGHT};
   auto tileset = tcod::load_tilesheet("data/fonts/dejavu8x8_gs_tc.png", {32, 8}, tcod::CHARMAP_TCOD);
   auto params = TCOD_ContextParams{};
@@ -52,9 +52,12 @@ int main(int argc, char* argv[]) {
     float deltaTime = timer.sync(desiredFPS);
     TCOD_console_clear(console.get());
     if (!credits) {
-      tcod::print(console, {DISPLAYWIDTH / 50, DISPLAYHEIGHT / 3}, "Derinkuyu\nA subterranean city-building game\nBy Owen McCormick", std::nullopt, std::nullopt);
-      credits = TCOD_console_credits_render_ex(console.get(), DISPLAYWIDTH / 10, DISPLAYHEIGHT / 3 + 10, false, deltaTime);
-      // credits = true;
+      // std::string title = "##           #      #               \n# # ### ###     ##  # # # # # # # # \n# # ##  #    #  # # ##  # # ### # # \n# # ### #    ## # # # # ###   # ### \n##                          ###     \n";
+      // std::string title = ".-. .-. .-. .-. . . . . . . . . . . \n|  )|-  |(   |  |\\| |<  | |  |  | | \n`-' `-' ' ' `-' ' ` ' ` `-'  `  `-' \n";
+      std::string title = " HHHHHHH                  HH          HH                             \n.HH....HH                ..          .HH              HH   HH        \n.HH    .HH  HHHHH  HHHHHH HH HHHHHHH .HH  HH HH   HH ..HH HH  HH   HH\n.HH    .HH HH...HH..HH..H.HH..HH...HH.HH HH .HH  .HH  ..HHH  .HH  .HH\n.HH    .HH.HHHHHHH .HH . .HH .HH  .HH.HHHH  .HH  .HH   .HH   .HH  .HH\n.HH    HH .HH....  .HH   .HH .HH  .HH.HH.HH .HH  .HH   HH    .HH  .HH\n.HHHHHHH  ..HHHHHH.HHH   .HH HHH  .HH.HH..HH..HHHHHH  HH     ..HHHHHH\n.......    ...... ...    .. ...   .. ..  ..  ......  ..       ...... \n";
+      tcod::print(console, {DISPLAYWIDTH / 50, DISPLAYHEIGHT / 5}, title, TCOD_ColorRGB{100, 85, 75}, std::nullopt);
+      tcod::print(console, {DISPLAYWIDTH / 50, DISPLAYHEIGHT / 3 + 10}, "A subterranean city-building game by Owen McCormick", TCOD_ColorRGB{155, 118, 83}, std::nullopt);
+      credits = TCOD_console_credits_render_ex(console.get(), DISPLAYWIDTH / 50, DISPLAYHEIGHT / 3 + 20, false, deltaTime * 2);
     } else {
       map->render(console, cursorX, cursorY, tickCount);
       for (auto actor : actors) {
@@ -66,15 +69,15 @@ int main(int argc, char* argv[]) {
       // Water density display
       // tcod::print(console, {0, 0}, std::to_string(map->getWater(cursorX, cursorY)), std::nullopt, std::nullopt);
       tcod::print(console, {0, 0}, std::to_string(cursorX) + ", " + std::to_string(cursorY), std::nullopt, std::nullopt);
+      map->tick(tickCount);
+      for (auto actor : actors) {
+        actor->act(map, tickCount, taskQueue);
+      }
     }
 
     context.present(console);  // Updates the visible display.
     SDL_Event event;
 
-    map->tick(tickCount);
-    for (auto actor : actors) {
-      actor->act(map, tickCount, taskQueue);
-    }
     // map->setMaterial(cursorX, cursorY, Material::VACUUM);
     tickCount++;
   
@@ -105,6 +108,7 @@ int main(int argc, char* argv[]) {
               worker0->order = Order(OrderType::MOVE, 0, cursorX, cursorY);
               worker1->order = Order(OrderType::MOVE, 0, cursorX, cursorY);
               worker2->order = Order(OrderType::MOVE, 0, cursorX, cursorY);
+              credits = true;
               break;
             }
             case SDL_SCANCODE_BACKSPACE: {

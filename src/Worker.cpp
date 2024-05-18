@@ -7,7 +7,7 @@
 #include "Order.hpp"
 #include "AStar.hpp"
 
-Worker::Worker(int x, int y) : Actor(x, y, 0x40, TCOD_ColorRGB{255, 255, 0}, TCOD_ColorRGB{250, 250, 250}), order(Order(OrderType::IDLE, 0, 0, 0)) {};
+Worker::Worker(int x, int y) : Actor(x, y, '@', TCOD_ColorRGB{255, 255, 0}), order(Order(OrderType::IDLE, 0, 0, 0)) {};
 
 void Worker::act(Map* map, int tickCount, std::priority_queue<Order> orders) {
   if (tickCount % 2 == 0) {
