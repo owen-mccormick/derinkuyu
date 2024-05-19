@@ -1,4 +1,3 @@
-#include <iostream>
 #include <SDL.h>
 #include <libtcod.hpp>
 #include <libtcod/timer.hpp>
@@ -6,6 +5,8 @@
 #include "Actor.hpp"
 #include "Worker.hpp"
 #include <queue>
+#include <vector>
+#include <iostream>
 
 int main(int argc, char* argv[]) {
   static int tickCount = 0;
@@ -33,16 +34,18 @@ int main(int argc, char* argv[]) {
 
   // Map, camera, and actors
   int cursorX = 25, cursorY = 20;
+  int digDesignateX = 0, digDesignateY = 0;
+  bool designatingDig = false;
 
   std::vector<Worker*> actors;
   Map* map = new Map(WIDTH, HEIGHT, DISPLAYWIDTH, DISPLAYHEIGHT);
-  Worker* worker0 = new Worker(map->placePlayer().first, map->placePlayer().second);
-  Worker* worker1 = new Worker(map->placePlayer().first, map->placePlayer().second);
-  Worker* worker2 = new Worker(map->placePlayer().first, map->placePlayer().second);
+  Worker* worker0 = new Worker(map, map->placePlayer().first, map->placePlayer().second);
+  Worker* worker1 = new Worker(map, map->placePlayer().first, map->placePlayer().second);
+  Worker* worker2 = new Worker(map, map->placePlayer().first, map->placePlayer().second);
   actors.push_back(worker0);
   actors.push_back(worker1);
   actors.push_back(worker2);
-  std::priority_queue<Order> taskQueue = std::priority_queue<Order>();
+  std::priority_queue<Order, std::vector<Order>, compareOrders> taskQueue = std::priority_queue<Order, std::vector<Order>, compareOrders>();
 
   // std::pair<int, int> playerPos = map->placePlayer();
   // Actor* player = new Actor(playerPos.first, playerPos.second, "@", tcod::ColorRGB(255, 255, 255));
@@ -54,10 +57,11 @@ int main(int argc, char* argv[]) {
     if (!credits) {
       // std::string title = "##           #      #               \n# # ### ###     ##  # # # # # # # # \n# # ##  #    #  # # ##  # # ### # # \n# # ### #    ## # # # # ###   # ### \n##                          ###     \n";
       // std::string title = ".-. .-. .-. .-. . . . . . . . . . . \n|  )|-  |(   |  |\\| |<  | |  |  | | \n`-' `-' ' ' `-' ' ` ' ` `-'  `  `-' \n";
-      std::string title = " HHHHHHH                  HH          HH                             \n.HH....HH                ..          .HH              HH   HH        \n.HH    .HH  HHHHH  HHHHHH HH HHHHHHH .HH  HH HH   HH ..HH HH  HH   HH\n.HH    .HH HH...HH..HH..H.HH..HH...HH.HH HH .HH  .HH  ..HHH  .HH  .HH\n.HH    .HH.HHHHHHH .HH . .HH .HH  .HH.HHHH  .HH  .HH   .HH   .HH  .HH\n.HH    HH .HH....  .HH   .HH .HH  .HH.HH.HH .HH  .HH   HH    .HH  .HH\n.HHHHHHH  ..HHHHHH.HHH   .HH HHH  .HH.HH..HH..HHHHHH  HH     ..HHHHHH\n.......    ...... ...    .. ...   .. ..  ..  ......  ..       ...... \n";
+      // std::string title = " HHHHHHH                  HH          HH                             \n.HH....HH                ..          .HH              HH   HH        \n.HH    .HH  HHHHH  HHHHHH HH HHHHHHH .HH  HH HH   HH ..HH HH  HH   HH\n.HH    .HH HH...HH..HH..H.HH..HH...HH.HH HH .HH  .HH  ..HHH  .HH  .HH\n.HH    .HH.HHHHHHH .HH . .HH .HH  .HH.HHHH  .HH  .HH   .HH   .HH  .HH\n.HH    HH .HH....  .HH   .HH .HH  .HH.HH.HH .HH  .HH   HH    .HH  .HH\n.HHHHHHH  ..HHHHHH.HHH   .HH HHH  .HH.HH..HH..HHHHHH  HH     ..HHHHHH\n.......    ...... ...    .. ...   .. ..  ..  ......  ..       ...... \n";
+      std::string title = "######╗ #######╗######╗ ##╗###╗   ##╗##╗  ##╗##╗   ##╗##╗   ##╗##╗   ##╗\n##╔══##╗##╔════╝##╔══##╗##║####╗  ##║##║ ##╔╝##║   ##║╚##╗ ##╔╝##║   ##║\n##║  ##║#####╗  ######╔╝##║##╔##╗ ##║#####╔╝ ##║   ##║ ╚####╔╝ ##║   ##║\n##║  ##║##╔══╝  ##╔══##╗##║##║╚##╗##║##╔═##╗ ##║   ##║  ╚##╔╝  ##║   ##║\n######╔╝#######╗##║  ##║##║##║ ╚####║##║  ##╗╚######╔╝   ##║   ╚######╔╝\n╚═════╝ ╚══════╝╚═╝  ╚═╝╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝ ╚═════╝    ╚═╝    ╚═════╝ \n";
       tcod::print(console, {DISPLAYWIDTH / 50, DISPLAYHEIGHT / 5}, title, TCOD_ColorRGB{100, 85, 75}, std::nullopt);
       tcod::print(console, {DISPLAYWIDTH / 50, DISPLAYHEIGHT / 3 + 10}, "A subterranean city-building game by Owen McCormick", TCOD_ColorRGB{155, 118, 83}, std::nullopt);
-      credits = TCOD_console_credits_render_ex(console.get(), DISPLAYWIDTH / 50, DISPLAYHEIGHT / 3 + 20, false, deltaTime * 2);
+      credits = TCOD_console_credits_render_ex(console.get(), DISPLAYWIDTH / 50, DISPLAYHEIGHT / 3 + 20, false, deltaTime * 1.5);
     } else {
       map->render(console, cursorX, cursorY, tickCount);
       for (auto actor : actors) {
@@ -71,7 +75,27 @@ int main(int argc, char* argv[]) {
       tcod::print(console, {0, 0}, std::to_string(cursorX) + ", " + std::to_string(cursorY), std::nullopt, std::nullopt);
       map->tick(tickCount);
       for (auto actor : actors) {
-        actor->act(map, tickCount, taskQueue);
+        // if (actor->getOrder().type == OrderType::IDLE && taskQueue.size() > 0) {
+          // actor->setOrder(taskQueue.top());
+          // taskQueue.pop();
+            // Demote priority of task that worker decided was inaccessible
+            // Order newOrder = taskQueue.top();
+            // taskQueue.pop();
+            // newOrder.priority = newOrder.priority - 1;
+            // taskQueue.push(newOrder);
+          // }
+          // actor->setOrder(taskQueue.top());
+          // taskQueue.pop();
+        // }
+        actor->act(tickCount);
+      }
+      // Dig designation marker
+      if (designatingDig) {
+        for (int i = digDesignateX; digDesignateX > cursorX ? i >= cursorX : i <= cursorX; digDesignateX > cursorX ? i-- : i++) { // Iterate in correct direction
+          for (int j = digDesignateY; digDesignateY > cursorY ? j >= cursorY : j <= cursorY; digDesignateY > cursorY ? j-- : j++) {
+            tcod::print(console, {i, j - cursorY + DISPLAYHEIGHT / 2}, "X", std::nullopt, std::nullopt);
+          }
+        }
       }
     }
 
@@ -108,17 +132,32 @@ int main(int argc, char* argv[]) {
               worker0->order = Order(OrderType::MOVE, 0, cursorX, cursorY);
               worker1->order = Order(OrderType::MOVE, 0, cursorX, cursorY);
               worker2->order = Order(OrderType::MOVE, 0, cursorX, cursorY);
-              credits = true;
+              // taskQueue.push(Order(OrderType::MOVE, 0, cursorX, cursorY));
+              credits = true; // Trigger intro skip
               break;
             }
-            case SDL_SCANCODE_BACKSPACE: {
-              map->setMaterial(cursorX, cursorY, Material::VACUUM);
-              break;
+            case SDL_SCANCODE_E: {
+              if (!designatingDig) {
+                designatingDig = true;
+                digDesignateX = cursorX;
+                digDesignateY = cursorY;
+              } else {
+                designatingDig = false;
+                for (int i = digDesignateX; digDesignateX > cursorX ? i >= cursorX : i <= cursorX; digDesignateX > cursorX ? i-- : i++) { // Iterate in correct direction
+                  for (int j = digDesignateY; digDesignateY > cursorY ? j >= cursorY : j <= cursorY; digDesignateY > cursorY ? j-- : j++) {
+                    // taskQueue.push(Order(OrderType::DIG, 0, i, j));
+                  }
+                }
+              }
             }
-            case SDL_SCANCODE_B: {
-              map->setMaterial(cursorX, cursorY, Material::LADDER);
-              break;
-            }
+            // case SDL_SCANCODE_BACKSPACE: {
+              // map->setMaterial(cursorX, cursorY, Material::VACUUM);
+              // break;
+            // }
+            // case SDL_SCANCODE_B: {
+              // map->setMaterial(cursorX, cursorY, Material::LADDER);
+              // break;
+            // }
             // case SDL_SCANCODE_KP_7: {
               // if (map->isWalkable(cursorX - 1, cursorY - 1) && map->areCoordsValid(cursorX - 1, cursorY - 1)) {
                 // cursorX--;
@@ -161,6 +200,10 @@ int main(int argc, char* argv[]) {
           }
           break;
         case SDL_QUIT:
+          // delete map;
+          // delete worker0;
+          // delete worker1;
+          // delete worker2;
           return 0; // Exit.
       }
     } 

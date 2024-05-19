@@ -13,6 +13,9 @@ class Material {
     static const Material DIRT;
     static const Material GRASS;
     static const Material LADDER;
+    static const Material WHEEL;
+    static const Material PLANK;
+    static const Material CANOPY;
     bool passable;
     bool climbable;
     int ch;
@@ -55,4 +58,5 @@ class Map {
   protected:
     Tile* tiles;
     Tile* getTile(int x, int y);
+    int wagonX;
 };

@@ -9,8 +9,11 @@ const Material Material::ROCK = Material(false, false, 0x2593, 1, TCOD_ColorRGB{
 const Material Material::TRUNK = Material(true, false, 0x2551, 2, TCOD_ColorRGB{166, 42, 42}, TCOD_ColorRGB{250, 250, 250}); 
 const Material Material::LEAVES = Material(true, false, '#', 3, TCOD_ColorRGB{0, 255, 0}, TCOD_ColorRGB{250, 250, 250});
 const Material Material::DIRT = Material(false, false, 0x2593, 4, TCOD_ColorRGB{155, 118, 83}, TCOD_ColorRGB{250, 250, 250});
-const Material Material::GRASS = Material(true, false, '=', 5, TCOD_ColorRGB{0, 255, 0}, TCOD_ColorRGB{250, 250, 250});
+const Material Material::GRASS = Material(true, false, '_', 5, TCOD_ColorRGB{0, 255, 0}, TCOD_ColorRGB{250, 250, 250});
 const Material Material::LADDER = Material(true, true, 'H', 6, TCOD_ColorRGB{166, 42, 42}, TCOD_ColorRGB{250, 250, 250});
+const Material Material::WHEEL = Material(true, false, 0x25C9, 7, TCOD_ColorRGB{156, 32, 32}, TCOD_ColorRGB{250, 250, 250});
+const Material Material::PLANK = Material(true, false, '=', 7, TCOD_ColorRGB{156, 32, 32}, TCOD_ColorRGB{250, 250, 250});
+const Material Material::CANOPY = Material(true, false, 0x2593, 7, TCOD_ColorRGB{255, 255, 255}, TCOD_ColorRGB{250, 250, 250});
 
 Map::Map(int width, int height, int displayWidth, int displayHeight) : width(width),
     height(height), displayWidth(displayWidth), displayHeight(displayHeight) {
@@ -55,6 +58,17 @@ Map::Map(int width, int height, int displayWidth, int displayHeight) : width(wid
     setMaterial(rng->getInt(0, width), 13, Material::GRASS);
   }
 
+  // Place wagon
+  wagonX = rng->getInt(0, width - 6);
+  setMaterial(wagonX, 13, Material::WHEEL);
+  setMaterial(wagonX + 1, 13, Material::WHEEL);
+  setMaterial(wagonX + 3, 13, Material::WHEEL);
+  setMaterial(wagonX + 4, 13, Material::WHEEL);
+  for (int i = wagonX; i < wagonX + 5; i++) {
+    setMaterial(i, 12, Material::PLANK);
+    setMaterial(i, 11, Material::CANOPY);
+  }
+
   // Cellular automata cave creation based on https://www.roguebasin.com/index.php?title=Cellular_Automata_Method_for_Generating_Random_Cave-Like_Levels
   for (int i = 0; i < width; i++) {
     for (int j = 15; j < height; j++) {
@@ -93,9 +107,9 @@ std::pair<int, int> Map::placePlayer() {
   TCODRandom* rng = TCODRandom::getInstance();
   int x, y;
   do {
-    x = rng->getInt(0, width);
-    y = 9;
-  } while (!isWalkable(x, y));
+    x = wagonX + rng->getInt(-5, 5);
+    y = 13;
+  } while (!isActorWalkable(x, y));
   return {x, y};
 }
 

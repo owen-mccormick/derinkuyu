@@ -4,6 +4,7 @@
 enum class OrderType {
   MOVE,
   BUILD,
+  DIG,
   IDLE
 };
 
@@ -11,11 +12,11 @@ struct Order {
   OrderType type;
   int priority, x, y;
   Order(OrderType type, int priority, int x, int y) : type(type), priority(priority), x(x), y(y) {};
-  // bool operator<(const Order& a) const {
-    // return this->priority < a.priority;
-  // }
 };
 
-inline bool operator<(const Order& a, const Order& b) {
-  return a.priority < b.priority;
-}
+// Comparator struct for priority queueing pointers
+struct compareOrders {
+  bool operator() (const Order a, const Order b) const {
+    return a.priority < b.priority;
+  }
+};

@@ -7,7 +7,8 @@
 
 class Worker : public Actor {
   public:
+    Map* map;
     Order order;
-    Worker(int x, int y);
-    void act(Map* map, int tickCount, std::priority_queue<Order> orders);
+    Worker(Map* map, int x, int y);
+    void act(int tickCount);
 };
