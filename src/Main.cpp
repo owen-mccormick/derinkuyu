@@ -39,13 +39,13 @@ int main(int argc, char* argv[]) {
 
   std::vector<Worker*> actors;
   Map* map = new Map(WIDTH, HEIGHT, DISPLAYWIDTH, DISPLAYHEIGHT);
-  Worker* worker0 = new Worker(map, map->placePlayer().first, map->placePlayer().second);
-  Worker* worker1 = new Worker(map, map->placePlayer().first, map->placePlayer().second);
-  Worker* worker2 = new Worker(map, map->placePlayer().first, map->placePlayer().second);
+  std::priority_queue<Order, std::vector<Order>, compareOrders>* taskQueue = new std::priority_queue<Order, std::vector<Order>, compareOrders>();
+  Worker* worker0 = new Worker(map, taskQueue, map->placePlayer().first, map->placePlayer().second);
+  Worker* worker1 = new Worker(map, taskQueue, map->placePlayer().first, map->placePlayer().second);
+  Worker* worker2 = new Worker(map, taskQueue, map->placePlayer().first, map->placePlayer().second);
   actors.push_back(worker0);
   actors.push_back(worker1);
   actors.push_back(worker2);
-  std::priority_queue<Order, std::vector<Order>, compareOrders> taskQueue = std::priority_queue<Order, std::vector<Order>, compareOrders>();
 
   // std::pair<int, int> playerPos = map->placePlayer();
   // Actor* player = new Actor(playerPos.first, playerPos.second, "@", tcod::ColorRGB(255, 255, 255));
@@ -129,10 +129,7 @@ int main(int argc, char* argv[]) {
             }
             case SDL_SCANCODE_SPACE: {
               // worker->order = Order(OrderType::IDLE, 0, 0, 0);
-              worker0->order = Order(OrderType::MOVE, 0, cursorX, cursorY);
-              worker1->order = Order(OrderType::MOVE, 0, cursorX, cursorY);
-              worker2->order = Order(OrderType::MOVE, 0, cursorX, cursorY);
-              // taskQueue.push(Order(OrderType::MOVE, 0, cursorX, cursorY));
+              taskQueue->push(Order(OrderType::MOVE, 0, cursorX, cursorY, 0, 0));
               credits = true; // Trigger intro skip
               break;
             }
@@ -145,7 +142,8 @@ int main(int argc, char* argv[]) {
                 designatingDig = false;
                 for (int i = digDesignateX; digDesignateX > cursorX ? i >= cursorX : i <= cursorX; digDesignateX > cursorX ? i-- : i++) { // Iterate in correct direction
                   for (int j = digDesignateY; digDesignateY > cursorY ? j >= cursorY : j <= cursorY; digDesignateY > cursorY ? j-- : j++) {
-                    // taskQueue.push(Order(OrderType::DIG, 0, i, j));
+                    // Set interest coords (but not path coords) because we don't know yet which cell adjacent to the cell of interest the miner will path to
+                    taskQueue->push(Order(OrderType::DIG, 0, 0, 0, i, j));
                   }
                 }
               }
@@ -201,6 +199,7 @@ int main(int argc, char* argv[]) {
           break;
         case SDL_QUIT:
           // delete map;
+          // delete taskQueue;
           // delete worker0;
           // delete worker1;
           // delete worker2;
