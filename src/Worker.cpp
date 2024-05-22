@@ -7,12 +7,17 @@
 #include "Order.hpp"
 #include "AStar.hpp"
 
-Worker::Worker(Map* map, std::priority_queue<Order, std::vector<Order>, compareOrders>* taskQueue, int x, int y)
-  : Actor(x, y, '@', TCOD_ColorRGB{255, 255, 0}), order(Order(OrderType::IDLE, 0, 0, 0, 0, 0)), map(map), taskQueue(taskQueue) {};
+Worker::Worker(Map* map, std::priority_queue<Order, std::vector<Order>, compareOrders>* taskQueue, Inventory* inventory, int x, int y)
+  : Actor(x, y, '@', TCOD_ColorRGB{255, 255, 0}), order(Order(OrderType::IDLE, 0, 0, 0, 0, 0)), map(map), taskQueue(taskQueue), inventory(inventory) {};
 
 // TODO - can probably be cleaned up to some extent
 void Worker::moveTowardDestination() {
   if (order.type == OrderType::DIG) {
+    // Can't dig passable tiles
+    if (map->getMaterial(order.interestX, order.interestY).passable) {
+      order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
+      return;
+    }
     // Figure out which neighboring tiles are accessible if going to a dig
     bool foundOpen = false;
     int xOff[3] = {-1, 0, 1};
@@ -34,7 +39,31 @@ void Worker::moveTowardDestination() {
       taskQueue->push(order);
       order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
     }
+  } else if (order.type == OrderType::CHOP) {
+    // TODO - remove duplicated logic here
+    // Can't chop non-tree tiles
+    if (map->getMaterial(order.interestX, order.interestY).id != Material::TRUNK.id) {
+      order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
+      return;
+    }
+    // Shift interest tile to base of tree
+    do {
+      if (map->getMaterial(order.interestX - 1, order.interestY).id == Material::TRUNK.id) {
+        order.interestX -= 1;
+      } else if (map->getMaterial(order.interestX - 1, order.interestY + 1).id == Material::TRUNK.id) {
+        order.interestX -= 1;
+        order.interestY += 1;
+      } else if (map->getMaterial(order.interestX - 1, order.interestY - 1).id == Material::TRUNK.id) {
+        order.interestX -= 1;
+        order.interestY -= 1;
+      } else {
+        break;
+      }
+    } while (true);
+    order.pathX = order.interestX;
+    order.pathY = order.interestY;
   }
+
   AStar astar = AStar(map, getX(), getY(), order.pathX, order.pathY);
   if (astar.calculate()) {
     moveTo(map, astar.walk());
@@ -77,8 +106,31 @@ void Worker::act(int tickCount) {
           order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
         }
       }
+      case OrderType::CHOP: {
+        moveTowardDestination();
+        if (getX() == order.pathX && getY() == order.pathY) {
+          recursiveTreeDelete(order.interestX, order.interestY);
+          order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
+        }
+      }
       default: {
         break;
+      }
+    }
+  }
+}
+
+void Worker::recursiveTreeDelete(int x, int y) {
+  if (map->getMaterial(x, y).id == Material::TRUNK.id) inventory->wood++;
+  map->setMaterial(x, y, Material::VACUUM);
+  int xOff[3] = {-1, 0, 1};
+  int yOff[3] = {-1, 0, 1};
+  for (int m = 0; m < 3; m++) {
+    for (int n = 0; n < 3; n++) {
+      if ((xOff[m] != 0 || yOff[n] != 0)
+        && (map->getMaterial(x + xOff[m], y + yOff[n]).id == Material::TRUNK.id || map->getMaterial(x + xOff[m], y + yOff[n]).id == Material::LEAVES.id)) {
+        
+        recursiveTreeDelete(x + xOff[m], y + yOff[n]);
       }
     }
   }

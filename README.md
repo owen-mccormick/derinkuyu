@@ -5,6 +5,8 @@ A rudimentary base-building game made for a C++ independent project with [Libtco
 #### To-Do
 - Add better lighting / background shading
 - Block breaking animation: cycle through the shaded tiles until broken
+- "Animate" tree chopping / falling or otherwise make non-instantaneous
+- Make wagon demolishable
 - Different biomes, both on surface (flat land, cliffs, rock chimneys...) and underground (groundwater, caverns, lava...)
 - Ore veins
 - Chopping trees, smoothing stone, construction

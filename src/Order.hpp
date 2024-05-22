@@ -4,6 +4,7 @@
 enum class OrderType {
   MOVE,
   DIG,
+  CHOP,
   IDLE
 };
 

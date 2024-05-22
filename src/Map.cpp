@@ -14,6 +14,7 @@ const Material Material::LADDER = Material(true, true, 'H', 6, TCOD_ColorRGB{166
 const Material Material::WHEEL = Material(true, false, 0x25C9, 7, TCOD_ColorRGB{156, 32, 32}, TCOD_ColorRGB{250, 250, 250});
 const Material Material::PLANK = Material(true, false, '=', 7, TCOD_ColorRGB{156, 32, 32}, TCOD_ColorRGB{250, 250, 250});
 const Material Material::CANOPY = Material(true, false, 0x2593, 7, TCOD_ColorRGB{255, 255, 255}, TCOD_ColorRGB{250, 250, 250});
+const Material Material::DOOR = Material(true, false, true, '[', 8, TCOD_ColorRGB{166, 42, 42}, TCOD_ColorRGB{250, 250, 250});
 
 Map::Map(int width, int height, int displayWidth, int displayHeight) : width(width),
     height(height), displayWidth(displayWidth), displayHeight(displayHeight) {
@@ -273,12 +274,8 @@ void Map::tick(int tickCount) {
               if ((isWalkable(i + xOff, j + yOff) && getWater(i, j) > getWater(i + xOff, j + yOff) && !getTile(i + xOff, j + yOff)->hasBeenUpdated)) {
                 getTile(i + xOff, j + yOff)->hasBeenUpdated = true;
                 getTile(i, j)->hasBeenUpdated = true;
-                // int flowAmount = std::min(getWater(i, j), 100 - getWater(i + xOff, j + yOff));
-                // double flowAmount = (getWater(i, j) - getWater(i + xOff, j + yOff)) / 2;
-                int flowAmount = getWater(i, j) > 0 ? 1 : 0;
-                // double flowAmount = (yOff == 0 ? (getWater(i, j) - getWater(i + xOff, j + yOff)) / 2 : std::min(getWater(i, j), 100 - getWater(i + xOff, j + yOff)));
                 setWater(i, j, 0);
-                setWater(i + xOff, j + yOff, 1);
+                setWater(i + xOff, j + yOff, getMaterial(i + xOff, j + yOff).door ? 0 : 1); // Doors delete water so buildings don't flood
               } else if (!areCoordsValid(i + xOff, j + yOff)) { // Water can flow off map
                 getTile(i, j)->hasBeenUpdated = true;
                 setWater(i, j, 0);

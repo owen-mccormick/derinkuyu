@@ -4,6 +4,7 @@
 #include "Map.hpp"
 #include "Actor.hpp"
 #include "Worker.hpp"
+#include "Inventory.hpp"
 #include <queue>
 #include <vector>
 #include <iostream>
@@ -13,7 +14,7 @@ int main(int argc, char* argv[]) {
   static constexpr int WIDTH = 75;
   static constexpr int HEIGHT = 86;
   static constexpr int DISPLAYWIDTH = 75;
-  static constexpr int DISPLAYHEIGHT = 45;
+  static constexpr int DISPLAYHEIGHT = 46;
   auto console = tcod::Console{DISPLAYWIDTH, DISPLAYHEIGHT};
   auto tileset = tcod::load_tilesheet("data/fonts/dejavu8x8_gs_tc.png", {32, 8}, tcod::CHARMAP_TCOD);
   auto params = TCOD_ContextParams{};
@@ -40,9 +41,10 @@ int main(int argc, char* argv[]) {
   std::vector<Worker*> actors;
   Map* map = new Map(WIDTH, HEIGHT, DISPLAYWIDTH, DISPLAYHEIGHT);
   std::priority_queue<Order, std::vector<Order>, compareOrders>* taskQueue = new std::priority_queue<Order, std::vector<Order>, compareOrders>();
-  Worker* worker0 = new Worker(map, taskQueue, map->placePlayer().first, map->placePlayer().second);
-  Worker* worker1 = new Worker(map, taskQueue, map->placePlayer().first, map->placePlayer().second);
-  Worker* worker2 = new Worker(map, taskQueue, map->placePlayer().first, map->placePlayer().second);
+  Inventory* inventory = new Inventory(); // May want to switch away from the simple global inventory system at some point
+  Worker* worker0 = new Worker(map, taskQueue, inventory, map->placePlayer().first, map->placePlayer().second);
+  Worker* worker1 = new Worker(map, taskQueue, inventory, map->placePlayer().first, map->placePlayer().second);
+  Worker* worker2 = new Worker(map, taskQueue, inventory, map->placePlayer().first, map->placePlayer().second);
   actors.push_back(worker0);
   actors.push_back(worker1);
   actors.push_back(worker2);
@@ -72,7 +74,8 @@ int main(int argc, char* argv[]) {
       if (tickCount % 36 >= 0) tcod::print(console, {cursorX, DISPLAYHEIGHT / 2}, "X", TCOD_ColorRGB{255, 255, 0}, std::nullopt);
       // Water density display
       // tcod::print(console, {0, 0}, std::to_string(map->getWater(cursorX, cursorY)), std::nullopt, std::nullopt);
-      tcod::print(console, {0, 0}, std::to_string(cursorX) + ", " + std::to_string(cursorY), std::nullopt, std::nullopt);
+      // tcod::print(console, {0, 0}, std::to_string(cursorX) + ", " + std::to_string(cursorY), std::nullopt, std::nullopt);
+      tcod::print(console, {0, 0}, "WOOD: "  + std::to_string(inventory->wood), Material::TRUNK.fg, std::nullopt);
       map->tick(tickCount);
       for (auto actor : actors) {
         // if (actor->getOrder().type == OrderType::IDLE && taskQueue.size() > 0) {
@@ -147,15 +150,24 @@ int main(int argc, char* argv[]) {
                   }
                 }
               }
+              break;
+            }
+            case SDL_SCANCODE_C: {
+              taskQueue->push(Order(OrderType::CHOP, 0, 0, 0, cursorX, cursorY));
+              break;
             }
             // case SDL_SCANCODE_BACKSPACE: {
               // map->setMaterial(cursorX, cursorY, Material::VACUUM);
               // break;
             // }
-            // case SDL_SCANCODE_B: {
-              // map->setMaterial(cursorX, cursorY, Material::LADDER);
-              // break;
-            // }
+            case SDL_SCANCODE_B: {
+              map->setMaterial(cursorX, cursorY, Material::DOOR);
+              break;
+            case SDL_SCANCODE_V: {
+              map->setMaterial(cursorX, cursorY, Material::LADDER);
+              break;
+            }
+            }
             // case SDL_SCANCODE_KP_7: {
               // if (map->isWalkable(cursorX - 1, cursorY - 1) && map->areCoordsValid(cursorX - 1, cursorY - 1)) {
                 // cursorX--;

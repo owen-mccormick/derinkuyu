@@ -16,15 +16,19 @@ class Material {
     static const Material WHEEL;
     static const Material PLANK;
     static const Material CANOPY;
+    static const Material DOOR;
     bool passable;
     bool climbable;
+    bool door;
     int ch;
     int id;
     TCOD_ColorRGB fg;
     TCOD_ColorRGB bg;
   private:
+    Material(bool pass, bool climb, bool door, int character, int id, const TCOD_ColorRGB& foreground, const TCOD_ColorRGB& background)
+      : passable(pass), climbable(climb), door(door), ch(character), id(id), fg(foreground), bg(background) {}
     Material(bool pass, bool climb, int character, int id, const TCOD_ColorRGB& foreground, const TCOD_ColorRGB& background)
-      : passable(pass), climbable(climb), ch(character), id(id), fg(foreground), bg(background) {}
+      : passable(pass), climbable(climb), door(false), ch(character), id(id), fg(foreground), bg(background) {}
 };
 
 struct Tile {
