@@ -44,14 +44,14 @@ std::vector<Node*> AStar::getNeighbors(Node* node) {
 
   // Nodes in the air are linked only to nodes below themselves unless they are ladders
   if (map->isActorWalkable(node->x, node->y + 1) && !map->getMaterial(node->x, node->y).climbable) {
-    std::cout << "Detected fall neighbor (" << node->x << ", " << node->y + 1 << ") of node (" << node->x << ", " << node->y << ")\n";
+    // std::cout << "Detected fall neighbor (" << node->x << ", " << node->y + 1 << ") of node (" << node->x << ", " << node->y << ")\n";
     result.push_back(&nodes[node->x + (node->y + 1) * map->width]);
   } else {
     // Cycle through dx and dy combination neighbors
     for (int i = 0; i < 2; i++) {
       for (int j = 0; j < 2; j++) {
         if (map->isActorWalkable(node->x + dx[i], node->y + dy[j])) {
-          std::cout << "Detected neighbor (" << node->x + dx[i] << ", " << node->y + dy[j] << ") of node (" << node->x << ", " << node->y << ")\n";
+          // std::cout << "Detected neighbor (" << node->x + dx[i] << ", " << node->y + dy[j] << ") of node (" << node->x << ", " << node->y << ")\n";
           result.push_back(&nodes[node->x + dx[i] + map->width * (node->y + dy[j])]);
         }
       }
@@ -72,7 +72,7 @@ bool AStar::calculate() {
   do {
     if (openQueue.size() == 0) {
       // If the queue is empty, there's no possible path
-      std::cout << "No path found" << std::endl;
+      // std::cout << "No path found" << std::endl;
       return false;
     }
     Node* current = openQueue.top();
@@ -82,7 +82,7 @@ bool AStar::calculate() {
     current->state = NodeState::CLOSED;
 
     if (current->x == endX && current->y == endY) {
-      std::cout << "Found goal" << std::endl;
+      // std::cout << "Found goal" << std::endl;
       return true;
     }
 
@@ -94,7 +94,7 @@ bool AStar::calculate() {
           neighbor->gCost = gCost(neighbor);
           if (neighbor->state != NodeState::OPEN) {
             neighbor->state = NodeState::OPEN;
-            std::cout << "Pushing to neighbors node (" << neighbor->x << ", " << neighbor->y << ")\n";
+            // std::cout << "Pushing to neighbors node (" << neighbor->x << ", " << neighbor->y << ")\n";
             openQueue.push(neighbor);
           }
         }

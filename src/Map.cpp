@@ -4,17 +4,17 @@
 #include <iostream>
 
 // Materials (maybe should be done in .hpp)
-const Material Material::VACUUM = Material(true, false, 0x00, 0, TCOD_ColorRGB{0, 0, 0}, TCOD_ColorRGB{250, 250, 250});
-const Material Material::ROCK = Material(false, false, 0x2593, 1, TCOD_ColorRGB{100, 85, 75}, TCOD_ColorRGB{250, 250, 250});
-const Material Material::TRUNK = Material(true, false, 0x2551, 2, TCOD_ColorRGB{166, 42, 42}, TCOD_ColorRGB{250, 250, 250}); 
-const Material Material::LEAVES = Material(true, false, '#', 3, TCOD_ColorRGB{0, 255, 0}, TCOD_ColorRGB{250, 250, 250});
-const Material Material::DIRT = Material(false, false, 0x2593, 4, TCOD_ColorRGB{155, 118, 83}, TCOD_ColorRGB{250, 250, 250});
-const Material Material::GRASS = Material(true, false, '_', 5, TCOD_ColorRGB{0, 255, 0}, TCOD_ColorRGB{250, 250, 250});
-const Material Material::LADDER = Material(true, true, 'H', 6, TCOD_ColorRGB{166, 42, 42}, TCOD_ColorRGB{250, 250, 250});
-const Material Material::WHEEL = Material(true, false, 0x25C9, 7, TCOD_ColorRGB{156, 32, 32}, TCOD_ColorRGB{250, 250, 250});
-const Material Material::PLANK = Material(true, false, '=', 7, TCOD_ColorRGB{156, 32, 32}, TCOD_ColorRGB{250, 250, 250});
-const Material Material::CANOPY = Material(true, false, 0x2593, 7, TCOD_ColorRGB{255, 255, 255}, TCOD_ColorRGB{250, 250, 250});
-const Material Material::DOOR = Material(true, false, true, '[', 8, TCOD_ColorRGB{166, 42, 42}, TCOD_ColorRGB{250, 250, 250});
+const Material Material::VACUUM = Material("VACUUM", true, false, 0x00, 0, TCOD_ColorRGB{0, 0, 0}, TCOD_ColorRGB{250, 250, 250});
+const Material Material::ROCK = Material("ROCK", false, false, 0x2593, 1, TCOD_ColorRGB{100, 85, 75}, TCOD_ColorRGB{250, 250, 250});
+const Material Material::TRUNK = Material("TRUNK", true, false, 0x2551, 2, TCOD_ColorRGB{166, 42, 42}, TCOD_ColorRGB{250, 250, 250}); 
+const Material Material::LEAVES = Material("LEAVES", true, false, '#', 3, TCOD_ColorRGB{0, 255, 0}, TCOD_ColorRGB{250, 250, 250});
+const Material Material::DIRT = Material("DIRT", false, false, 0x2593, 4, TCOD_ColorRGB{155, 118, 83}, TCOD_ColorRGB{250, 250, 250});
+const Material Material::GRASS = Material("GRASS", true, false, '_', 5, TCOD_ColorRGB{0, 255, 0}, TCOD_ColorRGB{250, 250, 250});
+const Material Material::LADDER = Material("LADDER", true, true, 'H', 6, TCOD_ColorRGB{166, 42, 42}, TCOD_ColorRGB{250, 250, 250});
+const Material Material::WHEEL = Material("WHEEL", true, false, 0x25C9, 7, TCOD_ColorRGB{156, 32, 32}, TCOD_ColorRGB{250, 250, 250});
+const Material Material::PLANK = Material("PLANK", false, false, '=', 7, TCOD_ColorRGB{156, 32, 32}, TCOD_ColorRGB{250, 250, 250});
+const Material Material::CANOPY = Material("CANOPY", true, false, 0x2593, 7, TCOD_ColorRGB{255, 255, 255}, TCOD_ColorRGB{250, 250, 250});
+const Material Material::DOOR = Material("DOOR", true, false, true, '[', 8, TCOD_ColorRGB{166, 42, 42}, TCOD_ColorRGB{250, 250, 250});
 
 Map::Map(int width, int height, int displayWidth, int displayHeight) : width(width),
     height(height), displayWidth(displayWidth), displayHeight(displayHeight) {
@@ -230,7 +230,7 @@ void Map::render(tcod::Console &console, int cursorX, int cursorY, int tickCount
 void Map::tick(int tickCount) {
   // Rain
   TCODRandom* rng = TCODRandom::getInstance();
-  if (tickCount % 8 == 0) {
+  if (tickCount % 8 == 9) {
     setWater(rng->getInt(0, width), 0, 1);
   }
 

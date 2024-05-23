@@ -37,6 +37,8 @@ int main(int argc, char* argv[]) {
   int cursorX = 25, cursorY = 20;
   int digDesignateX = 0, digDesignateY = 0;
   bool designatingDig = false;
+  int selectedBuildIndex = 0;
+  Material buildMenu[3] = {Material::PLANK, Material::DOOR, Material::LADDER}; // Constructible blocks
 
   std::vector<Worker*> actors;
   Map* map = new Map(WIDTH, HEIGHT, DISPLAYWIDTH, DISPLAYHEIGHT);
@@ -72,24 +74,9 @@ int main(int argc, char* argv[]) {
           actor->render(console, cursorX, cursorY, DISPLAYWIDTH, DISPLAYHEIGHT, map->getWater(actor->getX(), actor->getY()));
       }
       if (tickCount % 36 >= 0) tcod::print(console, {cursorX, DISPLAYHEIGHT / 2}, "X", TCOD_ColorRGB{255, 255, 0}, std::nullopt);
-      // Water density display
-      // tcod::print(console, {0, 0}, std::to_string(map->getWater(cursorX, cursorY)), std::nullopt, std::nullopt);
-      // tcod::print(console, {0, 0}, std::to_string(cursorX) + ", " + std::to_string(cursorY), std::nullopt, std::nullopt);
-      tcod::print(console, {0, 0}, "WOOD: "  + std::to_string(inventory->wood), Material::TRUNK.fg, std::nullopt);
+      tcod::print(console, {0, 0}, "WOOD: "  + std::to_string(inventory->wood), Material::TRUNK.fg, std::nullopt); // Inventory display
       map->tick(tickCount);
       for (auto actor : actors) {
-        // if (actor->getOrder().type == OrderType::IDLE && taskQueue.size() > 0) {
-          // actor->setOrder(taskQueue.top());
-          // taskQueue.pop();
-            // Demote priority of task that worker decided was inaccessible
-            // Order newOrder = taskQueue.top();
-            // taskQueue.pop();
-            // newOrder.priority = newOrder.priority - 1;
-            // taskQueue.push(newOrder);
-          // }
-          // actor->setOrder(taskQueue.top());
-          // taskQueue.pop();
-        // }
         actor->act(tickCount);
       }
       // Dig designation marker
@@ -100,12 +87,24 @@ int main(int argc, char* argv[]) {
           }
         }
       }
+
+      // Print build menu
+      // TODO - figure out why this doesn't work
+      // int spacing = 0;
+      // sizeof is for finding the array length
+      // for (int i = 0; i < sizeof(buildMenu) / sizeof(*buildMenu); i++) {
+        // std::cout << "Build menu display for: " << buildMenu[i].name << std::endl;
+        // tcod::print(console, {spacing, 1}, buildMenu[i].name, std::nullopt, std::nullopt);//selectedBuildIndex == i ? TCOD_ColorRGB{125, 125, 125} : TCOD_ColorRGB{0, 0, 0});
+        // spacing += buildMenu[i].name.length() + 1;
+      // }
+      tcod::print(console, {0, 45}, "PLANK", selectedBuildIndex == 0 ? TCOD_ColorRGB{0, 0, 0} : TCOD_ColorRGB{125, 125, 125}, selectedBuildIndex == 0 ? TCOD_ColorRGB{125, 125, 125} : TCOD_ColorRGB{0, 0, 0});
+      tcod::print(console, {6, 45}, "DOOR", selectedBuildIndex == 1 ? TCOD_ColorRGB{0, 0, 0} : TCOD_ColorRGB{125, 125, 125}, selectedBuildIndex == 1 ? TCOD_ColorRGB{125, 125, 125} : TCOD_ColorRGB{0, 0, 0});
+      tcod::print(console, {11, 45}, "LADDER", selectedBuildIndex == 2 ? TCOD_ColorRGB{0, 0, 0} : TCOD_ColorRGB{125, 125, 125}, selectedBuildIndex == 2 ? TCOD_ColorRGB{125, 125, 125} : TCOD_ColorRGB{0, 0, 0});
     }
 
     context.present(console);  // Updates the visible display.
     SDL_Event event;
 
-    // map->setMaterial(cursorX, cursorY, Material::VACUUM);
     tickCount++;
   
     // SDL_WaitEvent(nullptr);  // Optional, sleep until events are available.
@@ -152,22 +151,51 @@ int main(int argc, char* argv[]) {
               }
               break;
             }
-            case SDL_SCANCODE_C: {
+            case SDL_SCANCODE_Q: {
               taskQueue->push(Order(OrderType::CHOP, 0, 0, 0, cursorX, cursorY));
+              break;
+            }
+            // Build designations and build menu left and right
+            case SDL_SCANCODE_Z: {
+              if (selectedBuildIndex > 0) selectedBuildIndex--;
+              break;
+            }
+            case SDL_SCANCODE_X: {
+              if (inventory->wood > 0) {
+                if (selectedBuildIndex == 0) {
+                  taskQueue->push(Order(OrderType::BUILD, 0, 0, 0, cursorX, cursorY, Material::PLANK));
+                  // taskQueue->push(Order(OrderType::MOVE, 0, cursorX, cursorY, 0, 0));
+                } else if (selectedBuildIndex == 1) {
+                  taskQueue->push(Order(OrderType::BUILD, 0, 0, 0, cursorX, cursorY, Material::DOOR));
+                  // taskQueue->push(Order(OrderType::MOVE, 0, cursorX, cursorY, 0, 0));
+                } else if (selectedBuildIndex == 2) {
+                  taskQueue->push(Order(OrderType::BUILD, 0, 0, 0, cursorX, cursorY, Material::LADDER));
+                  // taskQueue->push(Order(OrderType::MOVE, 0, cursorX, cursorY, 0, 0));
+                }
+                inventory->wood--;
+              }
+              break;
+            }
+            case SDL_SCANCODE_C: {
+              if (selectedBuildIndex < 2) selectedBuildIndex++;
+              break;
+            }
+            case SDL_SCANCODE_P: {
+              std::cout << "Task queue length:" << std::to_string(taskQueue->size()) << std::endl;
               break;
             }
             // case SDL_SCANCODE_BACKSPACE: {
               // map->setMaterial(cursorX, cursorY, Material::VACUUM);
               // break;
             // }
-            case SDL_SCANCODE_B: {
-              map->setMaterial(cursorX, cursorY, Material::DOOR);
-              break;
-            case SDL_SCANCODE_V: {
-              map->setMaterial(cursorX, cursorY, Material::LADDER);
-              break;
-            }
-            }
+            // case SDL_SCANCODE_B: {
+              // map->setMaterial(cursorX, cursorY, Material::DOOR);
+              // break;
+            // }
+            // case SDL_SCANCODE_V: {
+              // map->setMaterial(cursorX, cursorY, Material::LADDER);
+              // break;
+            // }
             // case SDL_SCANCODE_KP_7: {
               // if (map->isWalkable(cursorX - 1, cursorY - 1) && map->areCoordsValid(cursorX - 1, cursorY - 1)) {
                 // cursorX--;

@@ -5,14 +5,18 @@ enum class OrderType {
   MOVE,
   DIG,
   CHOP,
+  BUILD,
   IDLE
 };
 
 struct Order {
   OrderType type;
   int priority, pathX, pathY, interestX, interestY;
+  Material interestMaterial; // Optional; used in building
+  Order(OrderType type, int priority, int pathX, int pathY, int interestX, int interestY, Material interestMaterial)
+    : type(type), priority(priority), pathX(pathX), pathY(pathY), interestX(interestX), interestY(interestY), interestMaterial(interestMaterial) {};
   Order(OrderType type, int priority, int pathX, int pathY, int interestX, int interestY)
-    : type(type), priority(priority), pathX(pathX), pathY(pathY), interestX(interestX), interestY(interestY) {};
+    : type(type), priority(priority), pathX(pathX), pathY(pathY), interestX(interestX), interestY(interestY), interestMaterial(Material::VACUUM) {};
 };
 
 // Comparator struct for priority queueing pointers

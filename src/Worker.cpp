@@ -10,15 +10,23 @@
 Worker::Worker(Map* map, std::priority_queue<Order, std::vector<Order>, compareOrders>* taskQueue, Inventory* inventory, int x, int y)
   : Actor(x, y, '@', TCOD_ColorRGB{255, 255, 0}), order(Order(OrderType::IDLE, 0, 0, 0, 0, 0)), map(map), taskQueue(taskQueue), inventory(inventory) {};
 
-// TODO - can probably be cleaned up to some extent
+// TODO - can probably be cleaned up to some extent - delete redundant code
 void Worker::moveTowardDestination() {
-  if (order.type == OrderType::DIG) {
+  if (order.type == OrderType::DIG || order.type == OrderType::BUILD) {
     // Can't dig passable tiles
-    if (map->getMaterial(order.interestX, order.interestY).passable) {
-      order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
-      return;
+    if (order.type == OrderType::DIG) {
+      if (map->getMaterial(order.interestX, order.interestY).passable) {
+        return;
+      }
+    } else if (order.type == OrderType::BUILD) {
+      // Can't build in non-empty tiles
+      if (map->getMaterial(order.interestX, order.interestY).id != Material::VACUUM.id) {
+        order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
+        std::cout << "Rejected build in occupied cell" << std::endl;
+        return;
+      }
     }
-    // Figure out which neighboring tiles are accessible if going to a dig
+    // Figure out which neighboring tiles are accessible if going to a dig or build
     bool foundOpen = false;
     int xOff[3] = {-1, 0, 1};
     int yOff[3] = {-1, 0, 1};
@@ -105,6 +113,7 @@ void Worker::act(int tickCount) {
           map->setMaterial(order.interestX, order.interestY, Material::VACUUM);
           order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
         }
+        break;
       }
       case OrderType::CHOP: {
         moveTowardDestination();
@@ -112,6 +121,15 @@ void Worker::act(int tickCount) {
           recursiveTreeDelete(order.interestX, order.interestY);
           order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
         }
+        break;
+      }
+      case OrderType::BUILD: {
+        moveTowardDestination();
+        if (getX() == order.pathX && getY() == order.pathY) {
+          map->setMaterial(order.interestX, order.interestY, order.interestMaterial);
+          order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
+        }
+        break;
       }
       default: {
         break;
