@@ -9,6 +9,21 @@
 #include <vector>
 #include <iostream>
 
+// Print an indicator for a queued order - not functional and not used yet
+void orderOverlayPrint(tcod::Console& console, Order order) {
+  // TODO - translate from coordinate to displayed tile space on screen
+  switch (order.type) {
+    case (OrderType::DIG): {
+      tcod::print(console, {order.interestX, order.interestY}, "X", TCOD_ColorRGB{255, 255, 255}, std::nullopt);
+      break;
+    }
+    case (OrderType::BUILD): {
+      tcod::print(console, {order.interestX, order.interestY}, std::string(1, order.interestMaterial.ch), TCOD_ColorRGB{255, 255, 255}, std::nullopt);
+    }
+    // TODO - move and chop indicators?
+  }
+}
+
 int main(int argc, char* argv[]) {
   static int tickCount = 0;
   static constexpr int WIDTH = 75;
@@ -41,9 +56,9 @@ int main(int argc, char* argv[]) {
   Material buildMenu[3] = {Material::PLANK, Material::DOOR, Material::LADDER}; // Constructible blocks
 
   std::vector<Worker*> actors;
-  Map* map = new Map(WIDTH, HEIGHT, DISPLAYWIDTH, DISPLAYHEIGHT);
-  std::priority_queue<Order, std::vector<Order>, compareOrders>* taskQueue = new std::priority_queue<Order, std::vector<Order>, compareOrders>();
   Inventory* inventory = new Inventory(); // May want to switch away from the simple global inventory system at some point
+  Map* map = new Map(inventory, WIDTH, HEIGHT, DISPLAYWIDTH, DISPLAYHEIGHT);
+  std::priority_queue<Order, std::vector<Order>, compareOrders>* taskQueue = new std::priority_queue<Order, std::vector<Order>, compareOrders>();
   Worker* worker0 = new Worker(map, taskQueue, inventory, map->placePlayer().first, map->placePlayer().second);
   Worker* worker1 = new Worker(map, taskQueue, inventory, map->placePlayer().first, map->placePlayer().second);
   Worker* worker2 = new Worker(map, taskQueue, inventory, map->placePlayer().first, map->placePlayer().second);
@@ -64,7 +79,7 @@ int main(int argc, char* argv[]) {
       // std::string title = " HHHHHHH                  HH          HH                             \n.HH....HH                ..          .HH              HH   HH        \n.HH    .HH  HHHHH  HHHHHH HH HHHHHHH .HH  HH HH   HH ..HH HH  HH   HH\n.HH    .HH HH...HH..HH..H.HH..HH...HH.HH HH .HH  .HH  ..HHH  .HH  .HH\n.HH    .HH.HHHHHHH .HH . .HH .HH  .HH.HHHH  .HH  .HH   .HH   .HH  .HH\n.HH    HH .HH....  .HH   .HH .HH  .HH.HH.HH .HH  .HH   HH    .HH  .HH\n.HHHHHHH  ..HHHHHH.HHH   .HH HHH  .HH.HH..HH..HHHHHH  HH     ..HHHHHH\n.......    ...... ...    .. ...   .. ..  ..  ......  ..       ...... \n";
       std::string title = "######╗ #######╗######╗ ##╗###╗   ##╗##╗  ##╗##╗   ##╗##╗   ##╗##╗   ##╗\n##╔══##╗##╔════╝##╔══##╗##║####╗  ##║##║ ##╔╝##║   ##║╚##╗ ##╔╝##║   ##║\n##║  ##║#####╗  ######╔╝##║##╔##╗ ##║#####╔╝ ##║   ##║ ╚####╔╝ ##║   ##║\n##║  ##║##╔══╝  ##╔══##╗##║##║╚##╗##║##╔═##╗ ##║   ##║  ╚##╔╝  ##║   ##║\n######╔╝#######╗##║  ##║##║##║ ╚####║##║  ##╗╚######╔╝   ##║   ╚######╔╝\n╚═════╝ ╚══════╝╚═╝  ╚═╝╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝ ╚═════╝    ╚═╝    ╚═════╝ \n";
       tcod::print(console, {DISPLAYWIDTH / 50, DISPLAYHEIGHT / 5}, title, TCOD_ColorRGB{100, 85, 75}, std::nullopt);
-      tcod::print(console, {DISPLAYWIDTH / 50, DISPLAYHEIGHT / 3 + 10}, "A subterranean city-building game by Owen McCormick", TCOD_ColorRGB{155, 118, 83}, std::nullopt);
+      tcod::print(console, {DISPLAYWIDTH / 50, DISPLAYHEIGHT / 3 + 10}, "A sandbox city-building game by Owen McCormick", TCOD_ColorRGB{155, 118, 83}, std::nullopt);
       credits = TCOD_console_credits_render_ex(console.get(), DISPLAYWIDTH / 50, DISPLAYHEIGHT / 3 + 20, false, deltaTime * 1.5);
     } else {
       map->render(console, cursorX, cursorY, tickCount);
@@ -100,6 +115,10 @@ int main(int argc, char* argv[]) {
       tcod::print(console, {0, 45}, "PLANK", selectedBuildIndex == 0 ? TCOD_ColorRGB{0, 0, 0} : TCOD_ColorRGB{125, 125, 125}, selectedBuildIndex == 0 ? TCOD_ColorRGB{125, 125, 125} : TCOD_ColorRGB{0, 0, 0});
       tcod::print(console, {6, 45}, "DOOR", selectedBuildIndex == 1 ? TCOD_ColorRGB{0, 0, 0} : TCOD_ColorRGB{125, 125, 125}, selectedBuildIndex == 1 ? TCOD_ColorRGB{125, 125, 125} : TCOD_ColorRGB{0, 0, 0});
       tcod::print(console, {11, 45}, "LADDER", selectedBuildIndex == 2 ? TCOD_ColorRGB{0, 0, 0} : TCOD_ColorRGB{125, 125, 125}, selectedBuildIndex == 2 ? TCOD_ColorRGB{125, 125, 125} : TCOD_ColorRGB{0, 0, 0});
+
+      // Print scheduled task indicators
+      // TODO - figure out how to iterate through taskQueue
+      // This is also incompatible with the nice-looking block break animation
     }
 
     context.present(console);  // Updates the visible display.
@@ -183,6 +202,12 @@ int main(int argc, char* argv[]) {
             case SDL_SCANCODE_P: {
               std::cout << "Task queue length:" << std::to_string(taskQueue->size()) << std::endl;
               break;
+            }
+            case SDL_SCANCODE_BACKSPACE: {
+              for (auto actor : actors) {
+                actor->order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
+              }
+              while (!taskQueue->empty()) taskQueue->pop();
             }
             // case SDL_SCANCODE_BACKSPACE: {
               // map->setMaterial(cursorX, cursorY, Material::VACUUM);

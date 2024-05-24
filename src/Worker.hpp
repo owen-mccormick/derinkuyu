@@ -13,8 +13,9 @@ class Worker : public Actor {
     Inventory* inventory;
     Worker(Map* map, std::priority_queue<Order, std::vector<Order>, compareOrders>* taskQueue, Inventory* inventory, int x, int y);
     void act(int tickCount);
-  protected:
     Order order;
+  protected:
     void moveTowardDestination(); // Movement towards goal common to multiple action types
     void recursiveTreeDelete(int x, int y);
+    int blockBreakTime; // Tick counter for block break animation
 };

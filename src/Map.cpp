@@ -5,10 +5,10 @@
 
 // Materials (maybe should be done in .hpp)
 const Material Material::VACUUM = Material("VACUUM", true, false, 0x00, 0, TCOD_ColorRGB{0, 0, 0}, TCOD_ColorRGB{250, 250, 250});
-const Material Material::ROCK = Material("ROCK", false, false, 0x2593, 1, TCOD_ColorRGB{100, 85, 75}, TCOD_ColorRGB{250, 250, 250});
+const Material Material::ROCK = Material("ROCK", false, false, 0x2593, 0x2592, 0x2591, 1, TCOD_ColorRGB{100, 85, 75}, TCOD_ColorRGB{250, 250, 250});
 const Material Material::TRUNK = Material("TRUNK", true, false, 0x2551, 2, TCOD_ColorRGB{166, 42, 42}, TCOD_ColorRGB{250, 250, 250}); 
 const Material Material::LEAVES = Material("LEAVES", true, false, '#', 3, TCOD_ColorRGB{0, 255, 0}, TCOD_ColorRGB{250, 250, 250});
-const Material Material::DIRT = Material("DIRT", false, false, 0x2593, 4, TCOD_ColorRGB{155, 118, 83}, TCOD_ColorRGB{250, 250, 250});
+const Material Material::DIRT = Material("DIRT", false, false, 0x2593, 0x2592, 0x2591, 4, TCOD_ColorRGB{155, 118, 83}, TCOD_ColorRGB{250, 250, 250});
 const Material Material::GRASS = Material("GRASS", true, false, '_', 5, TCOD_ColorRGB{0, 255, 0}, TCOD_ColorRGB{250, 250, 250});
 const Material Material::LADDER = Material("LADDER", true, true, 'H', 6, TCOD_ColorRGB{166, 42, 42}, TCOD_ColorRGB{250, 250, 250});
 const Material Material::WHEEL = Material("WHEEL", true, false, 0x25C9, 7, TCOD_ColorRGB{156, 32, 32}, TCOD_ColorRGB{250, 250, 250});
@@ -16,8 +16,8 @@ const Material Material::PLANK = Material("PLANK", false, false, '=', 7, TCOD_Co
 const Material Material::CANOPY = Material("CANOPY", true, false, 0x2593, 7, TCOD_ColorRGB{255, 255, 255}, TCOD_ColorRGB{250, 250, 250});
 const Material Material::DOOR = Material("DOOR", true, false, true, '[', 8, TCOD_ColorRGB{166, 42, 42}, TCOD_ColorRGB{250, 250, 250});
 
-Map::Map(int width, int height, int displayWidth, int displayHeight) : width(width),
-    height(height), displayWidth(displayWidth), displayHeight(displayHeight) {
+Map::Map(Inventory* inventory, int width, int height, int displayWidth, int displayHeight) : width(width),
+    height(height), displayWidth(displayWidth), displayHeight(displayHeight), inventory(inventory) {
 
   tiles = new Tile[width * height];
   TCODRandom* rng = TCODRandom::getInstance();
@@ -33,7 +33,7 @@ Map::Map(int width, int height, int displayWidth, int displayHeight) : width(wid
   }
 
   // Use Bresehnam line tools to draw tree trunks
-  for (int k = 0; k < 3; k++) {
+  for (int k = 0; k < 15; k++) {
     TCOD_bresenham_data_t data;
     int x = rng->getInt(0, width), y = 13;
     TCOD_line_init_mt(x, y, x + rng->getInt(-1, 1), 5, &data);
@@ -61,14 +61,14 @@ Map::Map(int width, int height, int displayWidth, int displayHeight) : width(wid
 
   // Place wagon
   wagonX = rng->getInt(0, width - 6);
-  setMaterial(wagonX, 13, Material::WHEEL);
-  setMaterial(wagonX + 1, 13, Material::WHEEL);
-  setMaterial(wagonX + 3, 13, Material::WHEEL);
-  setMaterial(wagonX + 4, 13, Material::WHEEL);
-  for (int i = wagonX; i < wagonX + 5; i++) {
-    setMaterial(i, 12, Material::PLANK);
-    setMaterial(i, 11, Material::CANOPY);
-  }
+  // setMaterial(wagonX, 13, Material::WHEEL);
+  // setMaterial(wagonX + 1, 13, Material::WHEEL);
+  // setMaterial(wagonX + 3, 13, Material::WHEEL);
+  // setMaterial(wagonX + 4, 13, Material::WHEEL);
+  // for (int i = wagonX; i < wagonX + 5; i++) {
+    // setMaterial(i, 12, Material::PLANK);
+    // setMaterial(i, 11, Material::CANOPY);
+  // }
 
   // Cellular automata cave creation based on https://www.roguebasin.com/index.php?title=Cellular_Automata_Method_for_Generating_Random_Cave-Like_Levels
   for (int i = 0; i < width; i++) {
@@ -146,8 +146,24 @@ void Map::setMaterial(int x, int y, Material material) {
   tiles[x + y * width].material = material;
 }
 
+void Map::setDisintegrate(int x, int y, bool disintegrate) {
+  tiles[x + y * width].disintegrate = disintegrate;
+}
+
 Material Map::getMaterial(int x, int y) {
   return tiles[x + y * width].material;
+}
+
+bool Map::getDisintegrate(int x, int y) {
+  return tiles[x + y * width].disintegrate;
+}
+
+Damage Map::getDamaged(int x, int y) {
+  return tiles[x + y * width].damage;
+}
+
+void Map::setDamaged(int x, int y, Damage d) {
+  tiles[x + y * width].damage = d;
 }
 
 int Map::getWater(int x, int y) {
@@ -218,9 +234,25 @@ void Map::render(tcod::Console &console, int cursorX, int cursorY, int tickCount
               0x2588, TCOD_ColorRGB{0, 0, 0}, TCOD_ColorRGB{0, 0, 125});
           } else {
             // Flicker with blue background in water, and also shade based on depth
-            TCOD_console_put_char_ex(console.get(), i, j - cursorY + displayHeight / 2,
-              tile.material.ch, tile.material.fg, tile.water == 0
-              ? TCOD_ColorRGB{ tile.light, tile.light, tile.light } : TCOD_ColorRGB{0, 0, 125}); 
+            int ch = 0;
+            switch (getDamaged(i, j)) {
+              case (INTACT): {
+                TCOD_console_put_char_ex(console.get(), i, j - cursorY + displayHeight / 2,
+                  tile.material.ch, tile.material.fg, tile.water == 0
+                  ? TCOD_ColorRGB{ tile.light, tile.light, tile.light } : TCOD_ColorRGB{0, 0, 125}); 
+                break;
+              }
+              case (DAMAGED): {
+                TCOD_console_put_char_ex(console.get(), i, j - cursorY + displayHeight / 2,
+                  tile.material.chDamaged, tile.material.fg, tile.water == 0
+                  ? TCOD_ColorRGB{ tile.light, tile.light, tile.light } : TCOD_ColorRGB{0, 0, 125}); 
+              }
+              case (BROKEN): {
+                TCOD_console_put_char_ex(console.get(), i, j - cursorY + displayHeight / 2,
+                  tile.material.chBroken, tile.material.fg, tile.water == 0
+                  ? TCOD_ColorRGB{ tile.light, tile.light, tile.light } : TCOD_ColorRGB{0, 0, 125}); 
+              }
+            }
           }
       }
     }
@@ -228,9 +260,21 @@ void Map::render(tcod::Console &console, int cursorX, int cursorY, int tickCount
 }
 
 void Map::tick(int tickCount) {
-  // Rain
   TCODRandom* rng = TCODRandom::getInstance();
-  if (tickCount % 8 == 9) {
+
+  // Disintegrate tile flag functionality
+  for (int i = 0; i < width; i++) {
+    for (int j = 0; j < height; j++) {
+      if (getTile(i, j)->disintegrate && rng->getInt(0, 15) == 0) {
+        if (getMaterial(i, j).id == Material::TRUNK.id) inventory->wood++;
+        setMaterial(i, j, Material::VACUUM);
+        getTile(i, j)->disintegrate = false;
+      }
+    }
+  }
+
+  // Rain
+  if (tickCount % 8 == 0) {
     setWater(rng->getInt(0, width), 0, 1);
   }
 
@@ -282,7 +326,7 @@ void Map::tick(int tickCount) {
               }
             }
           }
-       }
+        }
       }
     }
   }

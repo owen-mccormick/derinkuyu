@@ -8,7 +8,8 @@
 #include "AStar.hpp"
 
 Worker::Worker(Map* map, std::priority_queue<Order, std::vector<Order>, compareOrders>* taskQueue, Inventory* inventory, int x, int y)
-  : Actor(x, y, '@', TCOD_ColorRGB{255, 255, 0}), order(Order(OrderType::IDLE, 0, 0, 0, 0, 0)), map(map), taskQueue(taskQueue), inventory(inventory) {};
+  : Actor(x, y, '@', TCOD_ColorRGB{255, 255, 0}), order(Order(OrderType::IDLE, 0, 0, 0, 0, 0)),
+  map(map), taskQueue(taskQueue), inventory(inventory), blockBreakTime(0) {};
 
 // TODO - can probably be cleaned up to some extent - delete redundant code
 void Worker::moveTowardDestination() {
@@ -20,7 +21,7 @@ void Worker::moveTowardDestination() {
       }
     } else if (order.type == OrderType::BUILD) {
       // Can't build in non-empty tiles
-      if (map->getMaterial(order.interestX, order.interestY).id != Material::VACUUM.id) {
+    if (!map->isActorWalkable(order.interestX, order.interestY)) {
         order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
         std::cout << "Rejected build in occupied cell" << std::endl;
         return;
@@ -110,8 +111,29 @@ void Worker::act(int tickCount) {
         moveTowardDestination();
         // Complete condition for dig
         if (getX() == order.pathX && getY() == order.pathY) {
-          map->setMaterial(order.interestX, order.interestY, Material::VACUUM);
-          order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
+          blockBreakTime++;
+          if (blockBreakTime >= 5) {
+            switch (map->getDamaged(order.interestX, order.interestY)) {
+              case (Damage::INTACT): {
+                map->setDamaged(order.interestX, order.interestY, Damage::DAMAGED);
+                blockBreakTime = 0;
+                break;
+              }
+              case (Damage::DAMAGED): {
+                map->setDamaged(order.interestX, order.interestY, Damage::BROKEN);
+                blockBreakTime = 0;
+                break;
+              }
+              case (Damage::BROKEN): {
+                map->setMaterial(order.interestX, order.interestY, Material::VACUUM);
+                order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
+                blockBreakTime = 0;
+                break;
+              }
+            }
+          }
+        } else {
+          blockBreakTime = 0;
         }
         break;
       }
@@ -139,14 +161,15 @@ void Worker::act(int tickCount) {
 }
 
 void Worker::recursiveTreeDelete(int x, int y) {
-  if (map->getMaterial(x, y).id == Material::TRUNK.id) inventory->wood++;
-  map->setMaterial(x, y, Material::VACUUM);
+  // if (map->getMaterial(x, y).id == Material::TRUNK.id) inventory->wood++;
+  map->setDisintegrate(x, y, true);
   int xOff[3] = {-1, 0, 1};
   int yOff[3] = {-1, 0, 1};
   for (int m = 0; m < 3; m++) {
     for (int n = 0; n < 3; n++) {
       if ((xOff[m] != 0 || yOff[n] != 0)
-        && (map->getMaterial(x + xOff[m], y + yOff[n]).id == Material::TRUNK.id || map->getMaterial(x + xOff[m], y + yOff[n]).id == Material::LEAVES.id)) {
+        && (map->getMaterial(x + xOff[m], y + yOff[n]).id == Material::TRUNK.id || map->getMaterial(x + xOff[m], y + yOff[n]).id == Material::LEAVES.id)
+        && !map->getDisintegrate(x + xOff[m], y + yOff[n])) {
         
         recursiveTreeDelete(x + xOff[m], y + yOff[n]);
       }

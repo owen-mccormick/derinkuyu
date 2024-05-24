@@ -1,6 +1,7 @@
 #pragma once
 #include <libtcod.hpp>
 #include <vector>
+#include "Inventory.hpp"
 
 class Material {
   public:
@@ -22,14 +23,26 @@ class Material {
     bool climbable;
     bool door;
     int ch;
+    int chDamaged;
+    int chBroken;
     int id;
     TCOD_ColorRGB fg;
     TCOD_ColorRGB bg;
   private:
     Material(std::string name, bool pass, bool climb, bool door, int character, int id, const TCOD_ColorRGB& foreground, const TCOD_ColorRGB& background)
-      : passable(pass), climbable(climb), door(door), ch(character), id(id), fg(foreground), bg(background) {}
+      : passable(pass), climbable(climb), door(door), ch(character), chBroken(character), chDamaged(character), id(id), fg(foreground), bg(background) {}
     Material(std::string name, bool pass, bool climb, int character, int id, const TCOD_ColorRGB& foreground, const TCOD_ColorRGB& background)
-      : passable(pass), climbable(climb), door(false), ch(character), id(id), fg(foreground), bg(background) {}
+      : passable(pass), climbable(climb), door(false), ch(character), chBroken(character), chDamaged(character), id(id), fg(foreground), bg(background) {}
+    Material(std::string name, bool pass, bool climb, bool door, int character, int damagedCharacter, int brokenCharacter, int id, const TCOD_ColorRGB& foreground, const TCOD_ColorRGB& background)
+      : passable(pass), climbable(climb), door(door), ch(character), chDamaged(damagedCharacter), chBroken(brokenCharacter), id(id), fg(foreground), bg(background) {}
+    Material(std::string name, bool pass, bool climb, int character, int damagedCharacter, int brokenCharacter, int id, const TCOD_ColorRGB& foreground, const TCOD_ColorRGB& background)
+      : passable(pass), climbable(climb), door(false), ch(character), chBroken(brokenCharacter), chDamaged(damagedCharacter), id(id), fg(foreground), bg(background) {}
+};
+
+enum Damage {
+  INTACT,
+  DAMAGED,
+  BROKEN
 };
 
 struct Tile {
@@ -39,18 +52,25 @@ struct Tile {
   bool actorOccupied;
   bool emitsLight;
   bool hasBeenUpdated;
-  Tile() : material(Material::VACUUM), water(0), light(0), actorOccupied(false), emitsLight(false), hasBeenUpdated(false) {};
+  bool disintegrate;
+  Damage damage;
+  Tile() : material(Material::VACUUM), water(0), light(0), actorOccupied(false), emitsLight(false),
+    hasBeenUpdated(false), disintegrate(false), damage(Damage::INTACT) {};
 };
 
 class Map {
   public:
-    Map(int width, int height, int displayWidth, int displayHeight);
+    Map(Inventory* inventory, int width, int height, int displayWidth, int displayHeight);
     ~Map();
     void render(tcod::Console& console, int cursorX, int cursorY, int tickCount);
     void setWalkable(int x, int y, bool walk);
     bool isWalkable(int x, int y);
     bool isActorWalkable(int x, int y);
     void setMaterial(int x, int y, Material material);
+    void setDisintegrate(int x, int y, bool disintegrate);
+    bool getDisintegrate(int x, int y);
+    void setDamaged(int x, int y, Damage d);
+    Damage getDamaged(int x, int y);
     Material getMaterial(int x, int y);
     int getWater(int x, int y);
     void setWater(int x, int y, int amount);
@@ -64,4 +84,5 @@ class Map {
     Tile* tiles;
     Tile* getTile(int x, int y);
     int wagonX;
+    Inventory* inventory;
 };
