@@ -9,16 +9,15 @@
 #include <vector>
 #include <iostream>
 
-// Print an indicator for a queued order - not functional and not used yet
-void orderOverlayPrint(tcod::Console& console, Order order) {
-  // TODO - translate from coordinate to displayed tile space on screen
+// Print an indicator for a queued order
+void orderOverlayPrint(tcod::Console& console, Order order, int cursorY, int displayHeight) {
   switch (order.type) {
     case (OrderType::DIG): {
-      tcod::print(console, {order.interestX, order.interestY}, "X", TCOD_ColorRGB{255, 255, 255}, std::nullopt);
+      // tcod::print(console, {order.interestX, order.interestY}, "X", TCOD_ColorRGB{255, 255, 255}, std::nullopt);
       break;
     }
     case (OrderType::BUILD): {
-      tcod::print(console, {order.interestX, order.interestY}, std::string(1, order.interestMaterial.ch), TCOD_ColorRGB{255, 255, 255}, std::nullopt);
+      tcod::print(console, {order.interestX, order.interestY - cursorY + displayHeight / 2}, std::string(1, order.interestMaterial.ch), TCOD_ColorRGB{255, 255, 255},/*std::nullopt,*/ std::nullopt);
     }
     // TODO - move and chop indicators?
   }
@@ -117,8 +116,17 @@ int main(int argc, char* argv[]) {
       tcod::print(console, {11, 45}, "LADDER", selectedBuildIndex == 2 ? TCOD_ColorRGB{0, 0, 0} : TCOD_ColorRGB{125, 125, 125}, selectedBuildIndex == 2 ? TCOD_ColorRGB{125, 125, 125} : TCOD_ColorRGB{0, 0, 0});
 
       // Print scheduled task indicators
-      // TODO - figure out how to iterate through taskQueue
-      // This is also incompatible with the nice-looking block break animation
+      // We can't iterate through the queue, so we empty it to a vector and restore it afterwards
+      std::vector<Order> orders;
+      while (!taskQueue->empty()) {
+        orders.push_back(taskQueue->top());
+        taskQueue->pop();
+      }
+      for (auto order : orders) {
+        orderOverlayPrint(console, order, cursorY, DISPLAYHEIGHT);
+        taskQueue->push(order);
+      }
+
     }
 
     context.present(console);  // Updates the visible display.

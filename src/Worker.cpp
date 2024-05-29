@@ -6,6 +6,8 @@
 #include <cassert>
 #include "Order.hpp"
 #include "AStar.hpp"
+#include "float.h"
+#include "math.h"
 
 Worker::Worker(Map* map, std::priority_queue<Order, std::vector<Order>, compareOrders>* taskQueue, Inventory* inventory, int x, int y)
   : Actor(x, y, '@', TCOD_ColorRGB{255, 255, 0}), order(Order(OrderType::IDLE, 0, 0, 0, 0, 0)),
@@ -21,28 +23,40 @@ void Worker::moveTowardDestination() {
       }
     } else if (order.type == OrderType::BUILD) {
       // Can't build in non-empty tiles
-    if (!map->isActorWalkable(order.interestX, order.interestY)) {
+      // Also make sure we don't build an impassable tile on top of another actor
+    if (order.interestMaterial.climbable || order.interestMaterial.door ? !map->isWalkable(order.interestX, order.interestY) : !map->isActorWalkable(order.interestX, order.interestY)) {
         order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
         std::cout << "Rejected build in occupied cell" << std::endl;
         return;
       }
     }
-    // Figure out which neighboring tiles are accessible if going to a dig or build
-    bool foundOpen = false;
+    // Figure out which neighboring non-floating tiles are accessible if going to a dig or build and go for the closest one
+    double minDist = DBL_MAX;
     int xOff[3] = {-1, 0, 1};
     int yOff[3] = {-1, 0, 1};
     for (int n = 0; n < 3; n++) {
       for (int m = 0; m < 3; m++) {
         AStar astar = AStar(map, getX(), getY(), order.interestX + xOff[n], order.interestY + yOff[m]);
-        if (astar.calculate()) {
-          order.pathX = order.interestX + xOff[n];
-          order.pathY = order.interestY + yOff[m];
-          foundOpen = true;
-          break;
+        if (
+            astar.calculate() && hypot(order.interestX + xOff[n] - getX(), order.interestY + yOff[m] - getY())
+            // non-floating
+            && !map->isWalkable(order.interestX + xOff[n], order.interestY + yOff[m] + 1)
+            && !(order.interestX + xOff[n] == getX() && order.interestY + yOff[m] == getY())
+            && !(xOff[n] == 0 && yOff[m] == -1)
+          ) {
+          if (hypot(order.interestX - getX(), order.interestY - getY()) <= sqrt(2)) {
+            minDist = 0;
+            order.pathX = getX();
+            order.pathY = getY();
+          } else {
+            order.pathX = order.interestX + xOff[n];
+            order.pathY = order.interestY + yOff[m];
+            minDist = hypot(order.pathX - getX(), order.pathY - getY());
+          }
         }
       }
     }
-    if (!foundOpen) {
+    if (minDist == DBL_MAX) {
       // Drop and demote; see below
       order.priority -= 1;
       taskQueue->push(order);

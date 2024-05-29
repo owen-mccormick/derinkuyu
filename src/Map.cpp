@@ -274,7 +274,7 @@ void Map::tick(int tickCount) {
   }
 
   // Rain
-  if (tickCount % 8 == 0) {
+  if (tickCount % 8 == 9) {
     setWater(rng->getInt(0, width), 0, 1);
   }
 

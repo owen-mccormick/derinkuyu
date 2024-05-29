@@ -3,10 +3,10 @@
 #include <iostream>
 #include <cassert>
 #include "math.h"
-#include "limits.h"
+#include "float.h"
 #include "AStar.hpp"
 
-Node::Node() : x(0), y(0), hCost(INT_MAX), gCost(INT_MAX), bestParent(nullptr), state(NodeState::HIDDEN) {}
+Node::Node() : x(0), y(0), hCost(DBL_MAX), gCost(DBL_MAX), bestParent(nullptr), state(NodeState::HIDDEN) {}
 
 AStar::AStar(Map* map, int startX, int startY, int endX, int endY) : map(map), startX(startX), endX(endX), endY(endY) {
   nodes = new Node[map->width * map->height];
@@ -32,7 +32,7 @@ AStar::~AStar() {
 }
 
 // Recursively trace back to the start
-int AStar::gCost(Node* node) {
+double AStar::gCost(Node* node) {
   return node->bestParent == nullptr ? 0 : hypot(node->x - node->bestParent->x, node->y - node->bestParent->y) + gCost(node->bestParent);
 }
 
@@ -40,7 +40,7 @@ int AStar::gCost(Node* node) {
 std::vector<Node*> AStar::getNeighbors(Node* node) {
   std::vector<Node*> result;
   int dx[2] = {-1, 1};
-  int dy[3] = {-1, 0};
+  int dy[2] = {-1, 0};
 
   // Nodes in the air are linked only to nodes below themselves unless they are ladders
   if (map->isActorWalkable(node->x, node->y + 1) && !map->getMaterial(node->x, node->y).climbable) {

@@ -14,7 +14,8 @@ enum class NodeState {
 class Node {
   public:
     Node();
-    int x, y, gCost, hCost;
+    int x, y;
+    double gCost, hCost;
     NodeState state;
     Node* bestParent;
 };
@@ -22,7 +23,7 @@ class Node {
 // Comparator object to sort nodes inside priority queues
 struct compareNodePtrs {
   bool operator() (const Node* a, const Node* b) const {
-    return a->gCost + a->hCost < b->gCost + b->hCost;
+    return a->gCost + a->hCost > b->gCost + b->hCost;
   }
 };
 
@@ -36,7 +37,7 @@ class AStar {
     int startX, startY, endX, endY;
     Map* map;
     Node* nodes;
-    int gCost(Node* node);
+    double gCost(Node* node);
     // std::vector<std::pair<int, int>> backtrackPath(Node* node);
     // std::vector<std::pair<int, int>> path;
     std::pair<int, int> walk(Node* node, Node* child);
