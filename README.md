@@ -15,3 +15,4 @@ A rudimentary base-building game made for a C++ independent project with [Libtco
 - Defenses and enemy raids
 - Add dynamic "lighting" / tile background shading
 - Replace global inventory with tracking of actual item objects that can be moved and stored on particular tiles
+- Stars and moon visible at night

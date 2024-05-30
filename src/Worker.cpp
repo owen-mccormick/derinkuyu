@@ -47,7 +47,7 @@ void Worker::moveTowardDestination() {
         break; 
       }
       case OrderType::PLANT: {
-        if (map->getMaterial(order.interestX, order.interestY).id != Material::FARMPLOT.id) {
+        if (map->getMaterial(order.interestX, order.interestY).id != Material::FARM_PLOT.id) {
           order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
           // std::cout << "Rejected plant on untilled tile" << std::endl;
           return;
@@ -56,7 +56,7 @@ void Worker::moveTowardDestination() {
       }
       case OrderType::HARVEST: {
         // TODO - identity as plant should probably be made into a boolean flag for materials once more harvestable plants get added
-        if (map->getMaterial(order.interestX, order.interestY).id != Material::CEREALPLANT.id) {
+        if (map->getMaterial(order.interestX, order.interestY).id != Material::CEREAL_PLANT.id) {
           order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
           // std::cout << "Rejected harvesting of non-plant" << std::endl;
           return;
@@ -174,6 +174,11 @@ void Worker::act(int tickCount) {
                 break;
               }
               case (Damage::BROKEN): {
+                if (map->getMaterial(order.interestX, order.interestY).id == Material::COPPER_ORE.id) {
+                  inventory->copperOre++;
+                } else if (map->getMaterial(order.interestX, order.interestY).id == Material::TIN_ORE.id) {
+                  inventory->tinOre++;
+                }
                 map->setMaterial(order.interestX, order.interestY, Material::VACUUM);
                 order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
                 blockBreakTime = 0;
@@ -208,7 +213,7 @@ void Worker::act(int tickCount) {
       case OrderType::TILL: {
         moveTowardDestination();
         if (getX() == order.pathX && getY() == order.pathY) {
-          map->setMaterial(order.interestX, order.interestY, Material::FARMPLOT);
+          map->setMaterial(order.interestX, order.interestY, Material::FARM_PLOT);
           order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
         }
         break;
@@ -216,9 +221,9 @@ void Worker::act(int tickCount) {
       case OrderType::PLANT: {
         moveTowardDestination();
         if (getX() == order.pathX && getY() == order.pathY) {
-          if (map->isWalkable(order.interestX, order.interestY - 1) && inventory->cerealSeed > 0) {
-            map->setMaterial(order.interestX, order.interestY - 1, Material::CEREALSEED);
-            inventory->cerealSeed--;
+          if (map->isWalkable(order.interestX, order.interestY - 1) && inventory->CEREAL_SEED > 0) {
+            map->setMaterial(order.interestX, order.interestY - 1, Material::CEREAL_SEED);
+            inventory->CEREAL_SEED--;
 
           }
           order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
@@ -228,9 +233,9 @@ void Worker::act(int tickCount) {
       case OrderType::HARVEST: {
         moveTowardDestination();
         if (getX() == order.pathX && getY() == order.pathY) {
-          if (map->getMaterial(order.interestX, order.interestY).id == Material::CEREALPLANT.id) {
+          if (map->getMaterial(order.interestX, order.interestY).id == Material::CEREAL_PLANT.id) {
             map->setMaterial(order.interestX, order.interestY, Material::VACUUM);
-            inventory->cerealSeed = inventory->cerealSeed + 2;
+            inventory->CEREAL_SEED = inventory->CEREAL_SEED + 2;
             inventory->cerealGrain++;
           }
           order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);

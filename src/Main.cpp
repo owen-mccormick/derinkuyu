@@ -74,6 +74,7 @@ int main(int argc, char* argv[]) {
   int desiredFPS = 30;
   auto timer = tcod::Timer();
   bool credits = false;
+  bool paused = false;
 
   auto context = tcod::Context(params);
 
@@ -120,12 +121,16 @@ int main(int argc, char* argv[]) {
       if (tickCount % 36 >= 0) tcod::print(console, {cursorX, DISPLAYHEIGHT / 2}, "X", TCOD_ColorRGB{255, 255, 0}, std::nullopt);
       // Inventory display
       tcod::print(console, {0, 0}, "WOOD: "  + std::to_string(inventory->wood), Material::TRUNK.fg, std::nullopt);
-      tcod::print(console, {10, 0}, "SEED: " + std::to_string(inventory->cerealSeed), Material::CEREALSEED.fg, std::nullopt);
-      tcod::print(console, {20, 0}, "GRAIN: " + std::to_string(inventory->cerealGrain), Material::CEREALPLANT.fg, std::nullopt);
+      tcod::print(console, {10, 0}, "SEED: " + std::to_string(inventory->CEREAL_SEED), Material::CEREAL_SEED.fg, std::nullopt);
+      tcod::print(console, {20, 0}, "GRAIN: " + std::to_string(inventory->cerealGrain), Material::CEREAL_PLANT.fg, std::nullopt);
+      tcod::print(console, {31, 0}, "COPPER ORE: " + std::to_string(inventory->copperOre), Material::COPPER_ORE.bg, std::nullopt);
+      tcod::print(console, {47, 0}, "TIN ORE: " + std::to_string(inventory->tinOre), Material::TIN_ORE.bg, std::nullopt);
 
-      map->tick(tickCount);
-      for (auto actor : actors) {
-        actor->act(tickCount);
+      if (!paused) {
+        map->tick(tickCount);
+        for (auto actor : actors) {
+          actor->act(tickCount);
+        }
       }
 
       // Designation markers
@@ -190,7 +195,7 @@ int main(int argc, char* argv[]) {
     context.present(console);  // Updates the visible display.
     SDL_Event event;
 
-    tickCount++;
+    if (!paused) tickCount++;
   
     // SDL_WaitEvent(nullptr);  // Optional, sleep until events are available.
     while (SDL_PollEvent(&event)) {
@@ -220,6 +225,10 @@ int main(int argc, char* argv[]) {
               } else {
                 taskQueue->push(Order(OrderType::MOVE, 0, cursorX, cursorY, 0, 0));
               }
+              break;
+            }
+            case SDL_SCANCODE_RETURN: {
+              paused = !paused;
               break;
             }
             case SDL_SCANCODE_E: {
@@ -322,11 +331,12 @@ int main(int argc, char* argv[]) {
           }
           break;
         case SDL_QUIT:
-          // delete map;
-          // delete taskQueue;
-          // delete worker0;
-          // delete worker1;
-          // delete worker2;
+          delete map;
+          delete taskQueue;
+          delete inventory;
+          delete worker0;
+          delete worker1;
+          delete worker2;
           return 0; // Exit.
       }
     } 

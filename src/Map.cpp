@@ -17,9 +17,11 @@ const Material Material::PLANK = Material("PLANK", false, false, 0x2550, 7, TCOD
 const Material Material::CANOPY = Material("CANOPY", true, false, 0x2593, 7, TCOD_ColorRGB{255, 255, 255}, TCOD_ColorRGB{255, 255, 255});
 const Material Material::DOOR = Material("DOOR", true, false, true, '[', 8, TCOD_ColorRGB{166, 42, 42}, TCOD_ColorRGB{255, 255, 255});
 const Material Material::BED = Material("BED", true, false, 'm', 9, TCOD_ColorRGB{166, 42, 42}, TCOD_ColorRGB{255, 255, 255});
-const Material Material::FARMPLOT = Material("FARMPLOT", false, false, 0x2550, 10, TCOD_ColorRGB{155, 118, 83}, TCOD_ColorRGB{255, 255, 255});
-const Material Material::CEREALSEED = Material("CEREALSEED", true, false, '.', 11, TCOD_ColorRGB{255, 255, 0}, TCOD_ColorRGB{255, 255, 255});
-const Material Material::CEREALPLANT = Material("CEREALPLANT", true, false, 0x2551, 12, TCOD_ColorRGB{255, 255, 0}, TCOD_ColorRGB{255, 255, 255});
+const Material Material::FARM_PLOT = Material("FARM PLOT", false, false, 0x2550, 10, TCOD_ColorRGB{155, 118, 83}, TCOD_ColorRGB{255, 255, 255});
+const Material Material::CEREAL_SEED = Material("CEREAL SEED", true, false, '.', 11, TCOD_ColorRGB{255, 255, 0}, TCOD_ColorRGB{255, 255, 255});
+const Material Material::CEREAL_PLANT = Material("CEREAL PLANT", true, false, 0x2551, 12, TCOD_ColorRGB{255, 255, 0}, TCOD_ColorRGB{255, 255, 255});
+const Material Material::COPPER_ORE = Material("COPPER ORE", false, false, 0x2593, 0x2592, 0x2591, 13, TCOD_ColorRGB{100, 85, 75}, TCOD_ColorRGB{125, 75, 0});
+const Material Material::TIN_ORE = Material("TIN ORE", false, false, 0x2593, 0x2592, 0x2591, 14, TCOD_ColorRGB{100, 85, 75}, TCOD_ColorRGB{180, 180, 180});
 
 Map::Map(Inventory* inventory, int width, int height, int displayWidth, int displayHeight) : width(width),
     height(height), displayWidth(displayWidth), displayHeight(displayHeight), inventory(inventory) {
@@ -102,6 +104,16 @@ Map::Map(Inventory* inventory, int width, int height, int displayWidth, int disp
         }
       }
     }
+  }
+
+  // Ore veins: paint random lines on the bottom third of the map
+  for (int k = 0; k <= 15; k++) {
+    TCOD_bresenham_data_t data;
+    int x = rng->getInt(0, width), y = rng->getInt(height / 2, height);
+    TCOD_line_init_mt(x, y, rng->getInt(0, width), rng->getInt(height / 2, height), &data);
+    do {
+      if (getMaterial(x, y).id == Material::ROCK.id) setMaterial(x, y, k < 10 ? Material::COPPER_ORE : Material::TIN_ORE);
+    } while (!TCOD_line_step_mt(&x, &y, &data));
   }
 }
 
@@ -253,22 +265,26 @@ void Map::render(tcod::Console &console, int cursorX, int cursorY, int tickCount
               0x2588, TCOD_ColorRGB{0, 0, 0}, TCOD_ColorRGB{0, 0, 125});
           } else {
             // Flicker with blue background in water, and also shade based on depth
+            // Ores need the background color and are unaffected
             int ch = 0;
             switch (getDamaged(i, j)) {
               case (INTACT): {
                 TCOD_console_put_char_ex(console.get(), i, j - cursorY + displayHeight / 2,
-                  tile.material.ch, tile.material.fg, tile.water == 0
+                  tile.material.ch, tile.material.fg, tile.material.id == Material::COPPER_ORE.id || tile.material.id == Material::TIN_ORE.id
+                  ? tile.material.bg : tile.water == 0
                   ? TCOD_ColorRGB{ tile.light, tile.light, tile.light } : TCOD_ColorRGB{0, 0, 125}); 
                 break;
               }
               case (DAMAGED): {
                 TCOD_console_put_char_ex(console.get(), i, j - cursorY + displayHeight / 2,
-                  tile.material.chDamaged, tile.material.fg, tile.water == 0
+                  tile.material.chDamaged, tile.material.fg, tile.material.id == Material::COPPER_ORE.id || tile.material.id == Material::TIN_ORE.id
+                  ? tile.material.bg : tile.water == 0
                   ? TCOD_ColorRGB{ tile.light, tile.light, tile.light } : TCOD_ColorRGB{0, 0, 125}); 
               }
               case (BROKEN): {
                 TCOD_console_put_char_ex(console.get(), i, j - cursorY + displayHeight / 2,
-                  tile.material.chBroken, tile.material.fg, tile.water == 0
+                  tile.material.chBroken, tile.material.fg, tile.material.id == Material::COPPER_ORE.id || tile.material.id == Material::TIN_ORE.id
+                  ? tile.material.bg : tile.water == 0
                   ? TCOD_ColorRGB{ tile.light, tile.light, tile.light } : TCOD_ColorRGB{0, 0, 125}); 
               }
             }
@@ -291,15 +307,15 @@ void Map::tick(int tickCount) {
       }
       // Plant seeds mature and are destroyed upon plot removal
       // TODO - add an age trait to tiles to check for plant maturity as well
-      if (getMaterial(i, j).id == Material::CEREALSEED.id) {
-        if (getMaterial(i, j + 1).id != Material::FARMPLOT.id) {
+      if (getMaterial(i, j).id == Material::CEREAL_SEED.id) {
+        if (getMaterial(i, j + 1).id != Material::FARM_PLOT.id) {
           setMaterial(i, j, Material::VACUUM);
         } else if (sunExposure(i, j, tickCount) && rng->getInt(0, 1000) == 0) {
-          setMaterial(i, j, Material::CEREALPLANT);
+          setMaterial(i, j, Material::CEREAL_PLANT);
         }
       }
       // Plants are also deleted if the plot is destroyed
-      if (getMaterial(i, j).id == Material::CEREALPLANT.id && getMaterial(i, j + 1).id != Material::FARMPLOT.id) {
+      if (getMaterial(i, j).id == Material::CEREAL_PLANT.id && getMaterial(i, j + 1).id != Material::FARM_PLOT.id) {
         setMaterial(i, j, Material::VACUUM);
       }
     }

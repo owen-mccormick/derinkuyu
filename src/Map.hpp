@@ -19,9 +19,11 @@ class Material {
     static const Material CANOPY;
     static const Material DOOR;
     static const Material BED;
-    static const Material FARMPLOT;
-    static const Material CEREALSEED;
-    static const Material CEREALPLANT;
+    static const Material FARM_PLOT;
+    static const Material CEREAL_SEED;
+    static const Material CEREAL_PLANT;
+    static const Material COPPER_ORE;
+    static const Material TIN_ORE;
     std::string name;
     bool passable;
     bool climbable;
