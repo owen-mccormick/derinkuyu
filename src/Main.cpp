@@ -13,13 +13,43 @@
 void orderOverlayPrint(tcod::Console& console, Order order, int cursorY, int displayHeight) {
   switch (order.type) {
     case (OrderType::DIG): {
-      // tcod::print(console, {order.interestX, order.interestY}, "X", TCOD_ColorRGB{255, 255, 255}, std::nullopt);
+      tcod::print(console, {order.interestX, order.interestY - cursorY + displayHeight / 2}, "X", TCOD_ColorRGB{255, 255, 255}, std::nullopt);
       break;
     }
     case (OrderType::BUILD): {
       tcod::print(console, {order.interestX, order.interestY - cursorY + displayHeight / 2}, std::string(1, order.interestMaterial.ch), TCOD_ColorRGB{255, 255, 255},/*std::nullopt,*/ std::nullopt);
     }
-    // TODO - move and chop indicators?
+    case (OrderType::MOVE): {
+      TCOD_console_put_char_ex(console.get(), order.pathX, order.pathY - cursorY + displayHeight / 2, 0x2193, TCOD_ColorRGB{255, 255, 255}, TCOD_ColorRGB{0, 0, 0});
+      break;
+    }
+    // TODO - chop, till, plant, harvest indicators?
+  }
+}
+
+// Batch designation for dig, planting, and tilling
+// Used for toggling designation overlay upon associated key press
+void batchDesignate(
+  OrderType toDesignate, OrderType& designationType, int cursorX, int cursorY, int& designateX, int& designateY,
+  std::priority_queue<Order, std::vector<Order>, compareOrders>* taskQueue
+) {
+  if (designationType != toDesignate) {
+    designationType = toDesignate;
+    designateX = cursorX;
+    designateY = cursorY;
+  } else {
+    designationType = OrderType::IDLE;
+    for (int i = designateX; designateX > cursorX ? i >= cursorX : i <= cursorX; designateX > cursorX ? i-- : i++) { // Iterate in correct direction
+      for (int j = designateY; designateY > cursorY ? j >= cursorY : j <= cursorY; designateY > cursorY ? j-- : j++) {
+        switch (toDesignate) {
+          default: {
+            // Set interest coords (but not path coords) because we don't know yet which cell adjacent to the cell of interest the miner will path to
+            taskQueue->push(Order(toDesignate, 0, 0, 0, i, j));
+            break;
+          }
+        }
+      }
+    }
   }
 }
 
@@ -49,10 +79,10 @@ int main(int argc, char* argv[]) {
 
   // Map, camera, and actors
   int cursorX = 25, cursorY = 20;
-  int digDesignateX = 0, digDesignateY = 0;
-  bool designatingDig = false;
+  int designateX = 0, designateY = 0;
+  OrderType designationType = OrderType::IDLE; // Idle in this context will mean that nothing is currently being designated
   int selectedBuildIndex = 0;
-  Material buildMenu[3] = {Material::PLANK, Material::DOOR, Material::LADDER}; // Constructible blocks
+  Material buildMenu[4] = {Material::PLANK, Material::DOOR, Material::LADDER, Material::BED}; // Constructible blocks
 
   std::vector<Worker*> actors;
   Inventory* inventory = new Inventory(); // May want to switch away from the simple global inventory system at some point
@@ -78,7 +108,7 @@ int main(int argc, char* argv[]) {
       // std::string title = " HHHHHHH                  HH          HH                             \n.HH....HH                ..          .HH              HH   HH        \n.HH    .HH  HHHHH  HHHHHH HH HHHHHHH .HH  HH HH   HH ..HH HH  HH   HH\n.HH    .HH HH...HH..HH..H.HH..HH...HH.HH HH .HH  .HH  ..HHH  .HH  .HH\n.HH    .HH.HHHHHHH .HH . .HH .HH  .HH.HHHH  .HH  .HH   .HH   .HH  .HH\n.HH    HH .HH....  .HH   .HH .HH  .HH.HH.HH .HH  .HH   HH    .HH  .HH\n.HHHHHHH  ..HHHHHH.HHH   .HH HHH  .HH.HH..HH..HHHHHH  HH     ..HHHHHH\n.......    ...... ...    .. ...   .. ..  ..  ......  ..       ...... \n";
       std::string title = "######╗ #######╗######╗ ##╗###╗   ##╗##╗  ##╗##╗   ##╗##╗   ##╗##╗   ##╗\n##╔══##╗##╔════╝##╔══##╗##║####╗  ##║##║ ##╔╝##║   ##║╚##╗ ##╔╝##║   ##║\n##║  ##║#####╗  ######╔╝##║##╔##╗ ##║#####╔╝ ##║   ##║ ╚####╔╝ ##║   ##║\n##║  ##║##╔══╝  ##╔══##╗##║##║╚##╗##║##╔═##╗ ##║   ##║  ╚##╔╝  ##║   ##║\n######╔╝#######╗##║  ##║##║##║ ╚####║##║  ##╗╚######╔╝   ##║   ╚######╔╝\n╚═════╝ ╚══════╝╚═╝  ╚═╝╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝ ╚═════╝    ╚═╝    ╚═════╝ \n";
       tcod::print(console, {DISPLAYWIDTH / 50, DISPLAYHEIGHT / 5}, title, TCOD_ColorRGB{100, 85, 75}, std::nullopt);
-      tcod::print(console, {DISPLAYWIDTH / 50, DISPLAYHEIGHT / 3 + 10}, "A sandbox city-building game by Owen McCormick", TCOD_ColorRGB{155, 118, 83}, std::nullopt);
+      tcod::print(console, {DISPLAYWIDTH / 50, DISPLAYHEIGHT / 3 + 10}, "A sandbox base-building game by Owen McCormick", TCOD_ColorRGB{155, 118, 83}, std::nullopt);
       credits = TCOD_console_credits_render_ex(console.get(), DISPLAYWIDTH / 50, DISPLAYHEIGHT / 3 + 20, false, deltaTime * 1.5);
     } else {
       map->render(console, cursorX, cursorY, tickCount);
@@ -88,17 +118,40 @@ int main(int argc, char* argv[]) {
           actor->render(console, cursorX, cursorY, DISPLAYWIDTH, DISPLAYHEIGHT, map->getWater(actor->getX(), actor->getY()));
       }
       if (tickCount % 36 >= 0) tcod::print(console, {cursorX, DISPLAYHEIGHT / 2}, "X", TCOD_ColorRGB{255, 255, 0}, std::nullopt);
-      tcod::print(console, {0, 0}, "WOOD: "  + std::to_string(inventory->wood), Material::TRUNK.fg, std::nullopt); // Inventory display
+      // Inventory display
+      tcod::print(console, {0, 0}, "WOOD: "  + std::to_string(inventory->wood), Material::TRUNK.fg, std::nullopt);
+      tcod::print(console, {10, 0}, "SEED: " + std::to_string(inventory->cerealSeed), Material::CEREALSEED.fg, std::nullopt);
+      tcod::print(console, {20, 0}, "GRAIN: " + std::to_string(inventory->cerealGrain), Material::CEREALPLANT.fg, std::nullopt);
+
       map->tick(tickCount);
       for (auto actor : actors) {
         actor->act(tickCount);
       }
-      // Dig designation marker
-      if (designatingDig) {
-        for (int i = digDesignateX; digDesignateX > cursorX ? i >= cursorX : i <= cursorX; digDesignateX > cursorX ? i-- : i++) { // Iterate in correct direction
-          for (int j = digDesignateY; digDesignateY > cursorY ? j >= cursorY : j <= cursorY; digDesignateY > cursorY ? j-- : j++) {
-            tcod::print(console, {i, j - cursorY + DISPLAYHEIGHT / 2}, "X", std::nullopt, std::nullopt);
-          }
+
+      // Designation markers
+      std::string designateMark = "";
+      switch (designationType) {
+        case OrderType::DIG: {
+          designateMark = "X";
+          break;
+        }
+        case OrderType::TILL: {
+          designateMark = "T";
+          break;
+        }
+        case OrderType::PLANT: {
+          designateMark = "P";
+          break;
+        }
+        case OrderType::HARVEST: {
+          designateMark = "H";
+          break;
+        }
+        default: break;
+      }
+      for (int i = designateX; designateX > cursorX ? i >= cursorX : i <= cursorX; designateX > cursorX ? i-- : i++) { // Iterate in correct direction
+        for (int j = designateY; designateY > cursorY ? j >= cursorY : j <= cursorY; designateY > cursorY ? j-- : j++) {
+          tcod::print(console, {i, j - cursorY + DISPLAYHEIGHT / 2}, designateMark, std::nullopt, std::nullopt);
         }
       }
 
@@ -114,6 +167,7 @@ int main(int argc, char* argv[]) {
       tcod::print(console, {0, 45}, "PLANK", selectedBuildIndex == 0 ? TCOD_ColorRGB{0, 0, 0} : TCOD_ColorRGB{125, 125, 125}, selectedBuildIndex == 0 ? TCOD_ColorRGB{125, 125, 125} : TCOD_ColorRGB{0, 0, 0});
       tcod::print(console, {6, 45}, "DOOR", selectedBuildIndex == 1 ? TCOD_ColorRGB{0, 0, 0} : TCOD_ColorRGB{125, 125, 125}, selectedBuildIndex == 1 ? TCOD_ColorRGB{125, 125, 125} : TCOD_ColorRGB{0, 0, 0});
       tcod::print(console, {11, 45}, "LADDER", selectedBuildIndex == 2 ? TCOD_ColorRGB{0, 0, 0} : TCOD_ColorRGB{125, 125, 125}, selectedBuildIndex == 2 ? TCOD_ColorRGB{125, 125, 125} : TCOD_ColorRGB{0, 0, 0});
+      tcod::print(console, {18, 45}, "BED", selectedBuildIndex == 3 ? TCOD_ColorRGB{0, 0, 0} : TCOD_ColorRGB{125, 125, 125}, selectedBuildIndex == 3 ? TCOD_ColorRGB{125, 125, 125} : TCOD_ColorRGB{0, 0, 0});
 
       // Print scheduled task indicators
       // We can't iterate through the queue, so we empty it to a vector and restore it afterwards
@@ -126,7 +180,11 @@ int main(int argc, char* argv[]) {
         orderOverlayPrint(console, order, cursorY, DISPLAYHEIGHT);
         taskQueue->push(order);
       }
-
+      for (auto actor : actors) {
+        if (actor->order.type != OrderType::DIG) {
+          orderOverlayPrint(console, actor->order, cursorY, DISPLAYHEIGHT);
+        }
+      }
     }
 
     context.present(console);  // Updates the visible display.
@@ -157,26 +215,27 @@ int main(int argc, char* argv[]) {
               break;
             }
             case SDL_SCANCODE_SPACE: {
-              // worker->order = Order(OrderType::IDLE, 0, 0, 0);
-              taskQueue->push(Order(OrderType::MOVE, 0, cursorX, cursorY, 0, 0));
-              credits = true; // Trigger intro skip
+              if (!credits) {
+                credits = true; // Trigger intro skip
+              } else {
+                taskQueue->push(Order(OrderType::MOVE, 0, cursorX, cursorY, 0, 0));
+              }
               break;
             }
             case SDL_SCANCODE_E: {
-              if (!designatingDig) {
-                designatingDig = true;
-                digDesignateX = cursorX;
-                digDesignateY = cursorY;
-              } else {
-                designatingDig = false;
-                for (int i = digDesignateX; digDesignateX > cursorX ? i >= cursorX : i <= cursorX; digDesignateX > cursorX ? i-- : i++) { // Iterate in correct direction
-                  for (int j = digDesignateY; digDesignateY > cursorY ? j >= cursorY : j <= cursorY; digDesignateY > cursorY ? j-- : j++) {
-                    // Set interest coords (but not path coords) because we don't know yet which cell adjacent to the cell of interest the miner will path to
-                    taskQueue->push(Order(OrderType::DIG, 0, 0, 0, i, j));
-                  }
-                }
-              }
+              batchDesignate(OrderType::DIG, designationType, cursorX, cursorY, designateX, designateY, taskQueue);
               break;
+            }
+            case SDL_SCANCODE_O: {
+              batchDesignate(OrderType::TILL, designationType, cursorX, cursorY, designateX, designateY, taskQueue);
+              break;
+            }
+            case SDL_SCANCODE_P: {
+              batchDesignate(OrderType::PLANT, designationType, cursorX, cursorY, designateX, designateY, taskQueue);
+              break;
+            }
+            case SDL_SCANCODE_L: {
+              batchDesignate(OrderType::HARVEST, designationType, cursorX, cursorY, designateX, designateY, taskQueue);
             }
             case SDL_SCANCODE_Q: {
               taskQueue->push(Order(OrderType::CHOP, 0, 0, 0, cursorX, cursorY));
@@ -188,27 +247,19 @@ int main(int argc, char* argv[]) {
               break;
             }
             case SDL_SCANCODE_X: {
-              if (inventory->wood > 0) {
-                if (selectedBuildIndex == 0) {
-                  taskQueue->push(Order(OrderType::BUILD, 0, 0, 0, cursorX, cursorY, Material::PLANK));
-                  // taskQueue->push(Order(OrderType::MOVE, 0, cursorX, cursorY, 0, 0));
-                } else if (selectedBuildIndex == 1) {
-                  taskQueue->push(Order(OrderType::BUILD, 0, 0, 0, cursorX, cursorY, Material::DOOR));
-                  // taskQueue->push(Order(OrderType::MOVE, 0, cursorX, cursorY, 0, 0));
-                } else if (selectedBuildIndex == 2) {
-                  taskQueue->push(Order(OrderType::BUILD, 0, 0, 0, cursorX, cursorY, Material::LADDER));
-                  // taskQueue->push(Order(OrderType::MOVE, 0, cursorX, cursorY, 0, 0));
-                }
-                inventory->wood--;
+              if (selectedBuildIndex == 0) {
+                taskQueue->push(Order(OrderType::BUILD, 0, 0, 0, cursorX, cursorY, Material::PLANK));
+              } else if (selectedBuildIndex == 1) {
+                taskQueue->push(Order(OrderType::BUILD, 0, 0, 0, cursorX, cursorY, Material::DOOR));
+              } else if (selectedBuildIndex == 2) {
+                taskQueue->push(Order(OrderType::BUILD, 0, 0, 0, cursorX, cursorY, Material::LADDER));
+              } else if (selectedBuildIndex == 3) {
+                taskQueue->push(Order(OrderType::BUILD, 0, 0, 0, cursorX, cursorY, Material::BED));
               }
               break;
             }
             case SDL_SCANCODE_C: {
-              if (selectedBuildIndex < 2) selectedBuildIndex++;
-              break;
-            }
-            case SDL_SCANCODE_P: {
-              std::cout << "Task queue length:" << std::to_string(taskQueue->size()) << std::endl;
+              if (selectedBuildIndex < 3) selectedBuildIndex++;
               break;
             }
             case SDL_SCANCODE_BACKSPACE: {

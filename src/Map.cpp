@@ -2,19 +2,24 @@
 #include "Map.hpp"
 #include <algorithm>
 #include <iostream>
+#include "math.h"
 
 // Materials (maybe should be done in .hpp)
-const Material Material::VACUUM = Material("VACUUM", true, false, 0x00, 0, TCOD_ColorRGB{0, 0, 0}, TCOD_ColorRGB{250, 250, 250});
-const Material Material::ROCK = Material("ROCK", false, false, 0x2593, 0x2592, 0x2591, 1, TCOD_ColorRGB{100, 85, 75}, TCOD_ColorRGB{250, 250, 250});
-const Material Material::TRUNK = Material("TRUNK", true, false, 0x2551, 2, TCOD_ColorRGB{166, 42, 42}, TCOD_ColorRGB{250, 250, 250}); 
-const Material Material::LEAVES = Material("LEAVES", true, false, '#', 3, TCOD_ColorRGB{0, 255, 0}, TCOD_ColorRGB{250, 250, 250});
-const Material Material::DIRT = Material("DIRT", false, false, 0x2593, 0x2592, 0x2591, 4, TCOD_ColorRGB{155, 118, 83}, TCOD_ColorRGB{250, 250, 250});
-const Material Material::GRASS = Material("GRASS", true, false, '_', 5, TCOD_ColorRGB{0, 255, 0}, TCOD_ColorRGB{250, 250, 250});
-const Material Material::LADDER = Material("LADDER", true, true, 'H', 6, TCOD_ColorRGB{166, 42, 42}, TCOD_ColorRGB{250, 250, 250});
-const Material Material::WHEEL = Material("WHEEL", true, false, 0x25C9, 7, TCOD_ColorRGB{156, 32, 32}, TCOD_ColorRGB{250, 250, 250});
-const Material Material::PLANK = Material("PLANK", false, false, '=', 7, TCOD_ColorRGB{156, 32, 32}, TCOD_ColorRGB{250, 250, 250});
-const Material Material::CANOPY = Material("CANOPY", true, false, 0x2593, 7, TCOD_ColorRGB{255, 255, 255}, TCOD_ColorRGB{250, 250, 250});
-const Material Material::DOOR = Material("DOOR", true, false, true, '[', 8, TCOD_ColorRGB{166, 42, 42}, TCOD_ColorRGB{250, 250, 250});
+const Material Material::VACUUM = Material("VACUUM", true, false, 0x00, 0, TCOD_ColorRGB{0, 0, 0}, TCOD_ColorRGB{255, 255, 255});
+const Material Material::ROCK = Material("ROCK", false, false, 0x2593, 0x2592, 0x2591, 1, TCOD_ColorRGB{100, 85, 75}, TCOD_ColorRGB{255, 255, 255});
+const Material Material::TRUNK = Material("TRUNK", true, false, 0x2551, 2, TCOD_ColorRGB{166, 42, 42}, TCOD_ColorRGB{255, 255, 255}); 
+const Material Material::LEAVES = Material("LEAVES", true, false, '#', 3, TCOD_ColorRGB{0, 255, 0}, TCOD_ColorRGB{255, 255, 255});
+const Material Material::DIRT = Material("DIRT", false, false, 0x2593, 0x2592, 0x2591, 4, TCOD_ColorRGB{155, 118, 83}, TCOD_ColorRGB{255, 255, 255});
+const Material Material::GRASS = Material("GRASS", true, false, '_', 5, TCOD_ColorRGB{0, 255, 0}, TCOD_ColorRGB{255, 255, 255});
+const Material Material::LADDER = Material("LADDER", true, true, 'H', 6, TCOD_ColorRGB{166, 42, 42}, TCOD_ColorRGB{255, 255, 255});
+const Material Material::WHEEL = Material("WHEEL", true, false, 0x25C9, 7, TCOD_ColorRGB{156, 32, 32}, TCOD_ColorRGB{255, 255, 255});
+const Material Material::PLANK = Material("PLANK", false, false, 0x2550, 7, TCOD_ColorRGB{156, 32, 32}, TCOD_ColorRGB{255, 255, 255});
+const Material Material::CANOPY = Material("CANOPY", true, false, 0x2593, 7, TCOD_ColorRGB{255, 255, 255}, TCOD_ColorRGB{255, 255, 255});
+const Material Material::DOOR = Material("DOOR", true, false, true, '[', 8, TCOD_ColorRGB{166, 42, 42}, TCOD_ColorRGB{255, 255, 255});
+const Material Material::BED = Material("BED", true, false, 'm', 9, TCOD_ColorRGB{166, 42, 42}, TCOD_ColorRGB{255, 255, 255});
+const Material Material::FARMPLOT = Material("FARMPLOT", false, false, 0x2550, 10, TCOD_ColorRGB{155, 118, 83}, TCOD_ColorRGB{255, 255, 255});
+const Material Material::CEREALSEED = Material("CEREALSEED", true, false, '.', 11, TCOD_ColorRGB{255, 255, 0}, TCOD_ColorRGB{255, 255, 255});
+const Material Material::CEREALPLANT = Material("CEREALPLANT", true, false, 0x2551, 12, TCOD_ColorRGB{255, 255, 0}, TCOD_ColorRGB{255, 255, 255});
 
 Map::Map(Inventory* inventory, int width, int height, int displayWidth, int displayHeight) : width(width),
     height(height), displayWidth(displayWidth), displayHeight(displayHeight), inventory(inventory) {
@@ -132,7 +137,6 @@ bool Map::isActorWalkable(int x, int y) {
   return areCoordsValid(x, y) && tiles[x + y * width].material.passable && !tiles[x + y * width].actorOccupied;
 }
 
-
 // For allowing actors to path around other actors. May be better to combine into one method that takes a boolean
 void Map::registerActorPose(int x, int y) {
   tiles[x + width * y].actorOccupied = true;
@@ -178,6 +182,12 @@ bool Map::areCoordsValid(int x, int y) {
   return x >= 0 && x < width && y >= 0 && y < height;
 }
 
+bool Map::sunExposure(int x, int y, int tickCount) {
+  if (!areCoordsValid(x, y - 1)) return cos(tickCount / 150.0) > 0; // take into account day / night cycle
+  if (!isActorWalkable(x, y - 1)) return false;
+  return sunExposure(x, y - 1, tickCount);
+}
+
 void Map::render(tcod::Console &console, int cursorX, int cursorY, int tickCount) {
 
   // Updates light
@@ -219,11 +229,20 @@ void Map::render(tcod::Console &console, int cursorX, int cursorY, int tickCount
       // }
     // }
   // }
+  // for (int i = 0; i < width; i++) {
+    // for (int j = 0; j < height; j++) {
+      // getTile(i, j)->light = 255 - 3 * j;
+    // }
+  // }
+
+  // Shade by depth and day-night cycle interval
   for (int i = 0; i < width; i++) {
     for (int j = 0; j < height; j++) {
-      getTile(i, j)->light = 255 - 3 * j;
+      int light = 2 * (height - j) * (0.5 + cos(tickCount / 150.0));
+      getTile(i, j)->light = light > 255 ? 255 : light < 0 ? 0 : light;
     }
   }
+
   // Currently assumes a map where display width specifically is the entire width of the map.
   for (int i = 0; i < displayWidth; i++) {
     for (int j = cursorY - displayHeight / 2; j < cursorY + displayHeight / 2; j++) {
@@ -262,19 +281,32 @@ void Map::render(tcod::Console &console, int cursorX, int cursorY, int tickCount
 void Map::tick(int tickCount) {
   TCODRandom* rng = TCODRandom::getInstance();
 
-  // Disintegrate tile flag functionality
   for (int i = 0; i < width; i++) {
     for (int j = 0; j < height; j++) {
+      // Disintegrate tile flag functionality
       if (getTile(i, j)->disintegrate && rng->getInt(0, 15) == 0) {
         if (getMaterial(i, j).id == Material::TRUNK.id) inventory->wood++;
         setMaterial(i, j, Material::VACUUM);
         getTile(i, j)->disintegrate = false;
       }
+      // Plant seeds mature and are destroyed upon plot removal
+      // TODO - add an age trait to tiles to check for plant maturity as well
+      if (getMaterial(i, j).id == Material::CEREALSEED.id) {
+        if (getMaterial(i, j + 1).id != Material::FARMPLOT.id) {
+          setMaterial(i, j, Material::VACUUM);
+        } else if (sunExposure(i, j, tickCount) && rng->getInt(0, 1000) == 0) {
+          setMaterial(i, j, Material::CEREALPLANT);
+        }
+      }
+      // Plants are also deleted if the plot is destroyed
+      if (getMaterial(i, j).id == Material::CEREALPLANT.id && getMaterial(i, j + 1).id != Material::FARMPLOT.id) {
+        setMaterial(i, j, Material::VACUUM);
+      }
     }
   }
 
-  // Rain
-  if (tickCount % 8 == 9) {
+  // Rain - TODO: reenable
+  if (tickCount % 10 == 11) {
     setWater(rng->getInt(0, width), 0, 1);
   }
 

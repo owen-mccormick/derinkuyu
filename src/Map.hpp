@@ -18,6 +18,10 @@ class Material {
     static const Material PLANK;
     static const Material CANOPY;
     static const Material DOOR;
+    static const Material BED;
+    static const Material FARMPLOT;
+    static const Material CEREALSEED;
+    static const Material CEREALPLANT;
     std::string name;
     bool passable;
     bool climbable;
@@ -85,4 +89,5 @@ class Map {
     Tile* getTile(int x, int y);
     int wagonX;
     Inventory* inventory;
+    bool sunExposure(int x, int y, int tickCount);
 };

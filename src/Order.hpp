@@ -6,7 +6,11 @@ enum class OrderType {
   DIG,
   CHOP,
   BUILD,
-  IDLE
+  IDLE,
+  TILL,
+  PLANT,
+  HARVEST,
+  SLEEP // TODO - unimplemented
 };
 
 struct Order {

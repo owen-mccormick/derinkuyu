@@ -15,22 +15,57 @@ Worker::Worker(Map* map, std::priority_queue<Order, std::vector<Order>, compareO
 
 // TODO - can probably be cleaned up to some extent - delete redundant code
 void Worker::moveTowardDestination() {
-  if (order.type == OrderType::DIG || order.type == OrderType::BUILD) {
-    // Can't dig passable tiles
-    if (order.type == OrderType::DIG) {
-      if (map->getMaterial(order.interestX, order.interestY).passable) {
-        return;
+  if (
+    order.type == OrderType::DIG || order.type == OrderType::BUILD || order.type == OrderType::TILL
+    || order.type == OrderType::PLANT || order.type == OrderType::HARVEST
+  ) {
+    // Reject invalid order designations
+    switch (order.type) {
+      case OrderType::DIG: {
+        // Can't dig passable tiles
+        if (map->getMaterial(order.interestX, order.interestY).passable) {
+          return;
+        }
+        break;
       }
-    } else if (order.type == OrderType::BUILD) {
-      // Can't build in non-empty tiles
-      // Also make sure we don't build an impassable tile on top of another actor
-    if (order.interestMaterial.climbable || order.interestMaterial.door ? !map->isWalkable(order.interestX, order.interestY) : !map->isActorWalkable(order.interestX, order.interestY)) {
-        order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
-        std::cout << "Rejected build in occupied cell" << std::endl;
-        return;
+      case OrderType::BUILD: {
+        // Can't build in non-empty tiles
+        // Also make sure we don't build an impassable tile on top of another actor
+        if (order.interestMaterial.climbable || order.interestMaterial.door ? !map->isWalkable(order.interestX, order.interestY) : !map->isActorWalkable(order.interestX, order.interestY)) {
+          order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
+          // std::cout << "Rejected build in occupied cell" << std::endl;
+          return;
+        }
+        break;
       }
+      case OrderType::TILL: {
+        if (map->getMaterial(order.interestX, order.interestY).id != Material::DIRT.id) {
+          order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
+          // std::cout << "Rejected till on unfarmable tile" << std::endl;
+          return;
+        }
+        break; 
+      }
+      case OrderType::PLANT: {
+        if (map->getMaterial(order.interestX, order.interestY).id != Material::FARMPLOT.id) {
+          order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
+          // std::cout << "Rejected plant on untilled tile" << std::endl;
+          return;
+        }
+        break;
+      }
+      case OrderType::HARVEST: {
+        // TODO - identity as plant should probably be made into a boolean flag for materials once more harvestable plants get added
+        if (map->getMaterial(order.interestX, order.interestY).id != Material::CEREALPLANT.id) {
+          order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
+          // std::cout << "Rejected harvesting of non-plant" << std::endl;
+          return;
+        }
+        break;
+      }
+      default: break;
     }
-    // Figure out which neighboring non-floating tiles are accessible if going to a dig or build and go for the closest one
+    // Figure out which neighboring non-floating tiles are accessible and go for the closest one
     double minDist = DBL_MAX;
     int xOff[3] = {-1, 0, 1};
     int yOff[3] = {-1, 0, 1};
@@ -38,11 +73,11 @@ void Worker::moveTowardDestination() {
       for (int m = 0; m < 3; m++) {
         AStar astar = AStar(map, getX(), getY(), order.interestX + xOff[n], order.interestY + yOff[m]);
         if (
-            astar.calculate() && hypot(order.interestX + xOff[n] - getX(), order.interestY + yOff[m] - getY())
+            astar.calculate()
             // non-floating
-            && !map->isWalkable(order.interestX + xOff[n], order.interestY + yOff[m] + 1)
-            && !(order.interestX + xOff[n] == getX() && order.interestY + yOff[m] == getY())
-            && !(xOff[n] == 0 && yOff[m] == -1)
+            // && (!map->isWalkable(order.interestX + xOff[n], order.interestY + yOff[m] + 1) || map->getMaterial(order.interestX + xOff[n], order.interestY + yOff[m]).climbable)
+            // && !(order.interestX + xOff[n] == getX() && order.interestY + yOff[m] == getY())
+            // && !(xOff[n] == 0 && yOff[m] == -1)
           ) {
           if (hypot(order.interestX - getX(), order.interestY - getY()) <= sqrt(2)) {
             minDist = 0;
@@ -162,7 +197,42 @@ void Worker::act(int tickCount) {
       case OrderType::BUILD: {
         moveTowardDestination();
         if (getX() == order.pathX && getY() == order.pathY) {
-          map->setMaterial(order.interestX, order.interestY, order.interestMaterial);
+          if (inventory->wood > 0) {
+            map->setMaterial(order.interestX, order.interestY, order.interestMaterial);
+            inventory->wood--;
+          }
+          order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
+        }
+        break;
+      }
+      case OrderType::TILL: {
+        moveTowardDestination();
+        if (getX() == order.pathX && getY() == order.pathY) {
+          map->setMaterial(order.interestX, order.interestY, Material::FARMPLOT);
+          order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
+        }
+        break;
+      }
+      case OrderType::PLANT: {
+        moveTowardDestination();
+        if (getX() == order.pathX && getY() == order.pathY) {
+          if (map->isWalkable(order.interestX, order.interestY - 1) && inventory->cerealSeed > 0) {
+            map->setMaterial(order.interestX, order.interestY - 1, Material::CEREALSEED);
+            inventory->cerealSeed--;
+
+          }
+          order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
+        }
+        break;
+      }
+      case OrderType::HARVEST: {
+        moveTowardDestination();
+        if (getX() == order.pathX && getY() == order.pathY) {
+          if (map->getMaterial(order.interestX, order.interestY).id == Material::CEREALPLANT.id) {
+            map->setMaterial(order.interestX, order.interestY, Material::VACUUM);
+            inventory->cerealSeed = inventory->cerealSeed + 2;
+            inventory->cerealGrain++;
+          }
           order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
         }
         break;
@@ -181,9 +251,11 @@ void Worker::recursiveTreeDelete(int x, int y) {
   int yOff[3] = {-1, 0, 1};
   for (int m = 0; m < 3; m++) {
     for (int n = 0; n < 3; n++) {
-      if ((xOff[m] != 0 || yOff[n] != 0)
+      if (
+        (xOff[m] != 0 || yOff[n] != 0)
         && (map->getMaterial(x + xOff[m], y + yOff[n]).id == Material::TRUNK.id || map->getMaterial(x + xOff[m], y + yOff[n]).id == Material::LEAVES.id)
-        && !map->getDisintegrate(x + xOff[m], y + yOff[n])) {
+        && !map->getDisintegrate(x + xOff[m], y + yOff[n])
+      ) {
         
         recursiveTreeDelete(x + xOff[m], y + yOff[n]);
       }
