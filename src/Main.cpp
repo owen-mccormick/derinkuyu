@@ -83,7 +83,7 @@ int main(int argc, char* argv[]) {
   int designateX = 0, designateY = 0;
   OrderType designationType = OrderType::IDLE; // Idle in this context will mean that nothing is currently being designated
   int selectedBuildIndex = 0;
-  Material buildMenu[4] = {Material::PLANK, Material::DOOR, Material::LADDER, Material::BED}; // Constructible blocks
+  Material buildMenu[6] = {Material::PLANK, Material::DOOR, Material::LADDER, Material::BED, Material::SMELTER, Material::MILLSTONE}; // Constructible blocks
 
   std::vector<Worker*> actors;
   Inventory* inventory = new Inventory(); // May want to switch away from the simple global inventory system at some point
@@ -123,8 +123,11 @@ int main(int argc, char* argv[]) {
       tcod::print(console, {0, 0}, "WOOD: "  + std::to_string(inventory->wood), Material::TRUNK.fg, std::nullopt);
       tcod::print(console, {10, 0}, "SEED: " + std::to_string(inventory->CEREAL_SEED), Material::CEREAL_SEED.fg, std::nullopt);
       tcod::print(console, {20, 0}, "GRAIN: " + std::to_string(inventory->cerealGrain), Material::CEREAL_PLANT.fg, std::nullopt);
-      tcod::print(console, {31, 0}, "COPPER ORE: " + std::to_string(inventory->copperOre), Material::COPPER_ORE.bg, std::nullopt);
-      tcod::print(console, {47, 0}, "TIN ORE: " + std::to_string(inventory->tinOre), Material::TIN_ORE.bg, std::nullopt);
+      tcod::print(console, {31, 0}, "STONE: " + std::to_string(inventory->slate), Material::ROCK.bg, std::nullopt);
+      tcod::print(console, {41, 0}, "COPPER ORE: " + std::to_string(inventory->copperOre), Material::COPPER_ORE.bg, std::nullopt);
+      tcod::print(console, {57, 0}, "TIN ORE: " + std::to_string(inventory->tinOre), Material::TIN_ORE.bg, std::nullopt);
+      tcod::print(console, {0, 1}, "FLOUR: " + std::to_string(inventory->flour), TCOD_ColorRGB{255, 255, 255}, std::nullopt);
+      tcod::print(console, {11, 1}, "BRONZE: " + std::to_string(inventory->bronze), Material::COPPER_ORE.bg, std::nullopt);
 
       if (!paused) {
         map->tick(tickCount);
@@ -173,6 +176,8 @@ int main(int argc, char* argv[]) {
       tcod::print(console, {6, 45}, "DOOR", selectedBuildIndex == 1 ? TCOD_ColorRGB{0, 0, 0} : TCOD_ColorRGB{125, 125, 125}, selectedBuildIndex == 1 ? TCOD_ColorRGB{125, 125, 125} : TCOD_ColorRGB{0, 0, 0});
       tcod::print(console, {11, 45}, "LADDER", selectedBuildIndex == 2 ? TCOD_ColorRGB{0, 0, 0} : TCOD_ColorRGB{125, 125, 125}, selectedBuildIndex == 2 ? TCOD_ColorRGB{125, 125, 125} : TCOD_ColorRGB{0, 0, 0});
       tcod::print(console, {18, 45}, "BED", selectedBuildIndex == 3 ? TCOD_ColorRGB{0, 0, 0} : TCOD_ColorRGB{125, 125, 125}, selectedBuildIndex == 3 ? TCOD_ColorRGB{125, 125, 125} : TCOD_ColorRGB{0, 0, 0});
+      tcod::print(console, {22, 45}, "SMELTER", selectedBuildIndex == 4 ? TCOD_ColorRGB{0, 0, 0} : TCOD_ColorRGB{125, 125, 125}, selectedBuildIndex == 4 ? TCOD_ColorRGB{125, 125, 125} : TCOD_ColorRGB{0, 0, 0});
+      tcod::print(console, {30, 45}, "MILLSTONE", selectedBuildIndex == 5 ? TCOD_ColorRGB{0, 0, 0} : TCOD_ColorRGB{125, 125, 125}, selectedBuildIndex == 5 ? TCOD_ColorRGB{125, 125, 125} : TCOD_ColorRGB{0, 0, 0});
 
       // Print scheduled task indicators
       // We can't iterate through the queue, so we empty it to a vector and restore it afterwards
@@ -235,19 +240,27 @@ int main(int argc, char* argv[]) {
               batchDesignate(OrderType::DIG, designationType, cursorX, cursorY, designateX, designateY, taskQueue);
               break;
             }
-            case SDL_SCANCODE_O: {
+            case SDL_SCANCODE_I: {
               batchDesignate(OrderType::TILL, designationType, cursorX, cursorY, designateX, designateY, taskQueue);
               break;
             }
-            case SDL_SCANCODE_P: {
+            case SDL_SCANCODE_O: {
               batchDesignate(OrderType::PLANT, designationType, cursorX, cursorY, designateX, designateY, taskQueue);
               break;
             }
-            case SDL_SCANCODE_L: {
+            case SDL_SCANCODE_P: {
               batchDesignate(OrderType::HARVEST, designationType, cursorX, cursorY, designateX, designateY, taskQueue);
             }
             case SDL_SCANCODE_Q: {
               taskQueue->push(Order(OrderType::CHOP, 0, 0, 0, cursorX, cursorY));
+              break;
+            }
+            case SDL_SCANCODE_R: {
+              if (map->getMaterial(cursorX, cursorY).id == Material::SMELTER.id) {
+                taskQueue->push(Order(OrderType::SMELT, 0, 0, 0, cursorX, cursorY));
+              } else if (map->getMaterial(cursorX, cursorY).id == Material::MILLSTONE.id) {
+                taskQueue->push(Order(OrderType::MILL, 0, 0, 0, cursorX, cursorY));
+              }
               break;
             }
             // Build designations and build menu left and right
@@ -264,11 +277,15 @@ int main(int argc, char* argv[]) {
                 taskQueue->push(Order(OrderType::BUILD, 0, 0, 0, cursorX, cursorY, Material::LADDER));
               } else if (selectedBuildIndex == 3) {
                 taskQueue->push(Order(OrderType::BUILD, 0, 0, 0, cursorX, cursorY, Material::BED));
+              } else if (selectedBuildIndex == 4) {
+                taskQueue->push(Order(OrderType::BUILD, 0, 0, 0, cursorX, cursorY, Material::SMELTER));
+              } else if (selectedBuildIndex == 5) {
+                taskQueue->push(Order(OrderType::BUILD, 0, 0, 0, cursorX, cursorY, Material::MILLSTONE));
               }
               break;
             }
             case SDL_SCANCODE_C: {
-              if (selectedBuildIndex < 3) selectedBuildIndex++;
+              if (selectedBuildIndex < 5) selectedBuildIndex++;
               break;
             }
             case SDL_SCANCODE_BACKSPACE: {

@@ -24,6 +24,8 @@ class Material {
     static const Material CEREAL_PLANT;
     static const Material COPPER_ORE;
     static const Material TIN_ORE;
+    static const Material SMELTER;
+    static const Material MILLSTONE;
     std::string name;
     bool passable;
     bool climbable;
@@ -59,9 +61,11 @@ struct Tile {
   bool emitsLight;
   bool hasBeenUpdated;
   bool disintegrate;
+  bool star; // Stars in night sky
+  bool inUse; // Visual indicator flag for millstones and smelters running
   Damage damage;
   Tile() : material(Material::VACUUM), water(0), light(0), actorOccupied(false), emitsLight(false),
-    hasBeenUpdated(false), disintegrate(false), damage(Damage::INTACT) {};
+    hasBeenUpdated(false), disintegrate(false), damage(Damage::INTACT), inUse(false)/*, star(false)*/ {};
 };
 
 class Map {
@@ -84,6 +88,8 @@ class Map {
     bool areCoordsValid(int x, int y);
     void registerActorPose(int x, int y);
     void deregisterActorPose(int x, int y);
+    bool getInUse(int x, int y);
+    void setInUse(int x, int y, bool status);
     std::pair<int, int> placePlayer();
     int width, height, displayWidth, displayHeight;
   protected:

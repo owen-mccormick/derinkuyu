@@ -17,5 +17,5 @@ class Worker : public Actor {
   protected:
     void moveTowardDestination(); // Movement towards goal common to multiple action types
     void recursiveTreeDelete(int x, int y);
-    int blockBreakTime; // Tick counter for block break animation
+    int actionTickCounter; // Tick counter for block break animation
 };

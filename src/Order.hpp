@@ -10,6 +10,8 @@ enum class OrderType {
   TILL,
   PLANT,
   HARVEST,
+  SMELT,
+  MILL,
   SLEEP // TODO - unimplemented
 };
 

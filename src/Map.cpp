@@ -22,6 +22,8 @@ const Material Material::CEREAL_SEED = Material("CEREAL SEED", true, false, '.',
 const Material Material::CEREAL_PLANT = Material("CEREAL PLANT", true, false, 0x2551, 12, TCOD_ColorRGB{255, 255, 0}, TCOD_ColorRGB{255, 255, 255});
 const Material Material::COPPER_ORE = Material("COPPER ORE", false, false, 0x2593, 0x2592, 0x2591, 13, TCOD_ColorRGB{100, 85, 75}, TCOD_ColorRGB{125, 75, 0});
 const Material Material::TIN_ORE = Material("TIN ORE", false, false, 0x2593, 0x2592, 0x2591, 14, TCOD_ColorRGB{100, 85, 75}, TCOD_ColorRGB{180, 180, 180});
+const Material Material::SMELTER = Material("SMELTER", true, false, 'U', 15, TCOD_ColorRGB{100, 85, 75}, TCOD_ColorRGB{255, 255, 255});
+const Material Material::MILLSTONE = Material("MILLSTONE", true, false, 'O', 16, TCOD_ColorRGB{100, 85, 75}, TCOD_ColorRGB{255, 255, 255});
 
 Map::Map(Inventory* inventory, int width, int height, int displayWidth, int displayHeight) : width(width),
     height(height), displayWidth(displayWidth), displayHeight(displayHeight), inventory(inventory) {
@@ -43,10 +45,12 @@ Map::Map(Inventory* inventory, int width, int height, int displayWidth, int disp
   for (int k = 0; k < 15; k++) {
     TCOD_bresenham_data_t data;
     int x = rng->getInt(0, width), y = 13;
-    TCOD_line_init_mt(x, y, x + rng->getInt(-1, 1), 5, &data);
-    do {
-      setMaterial(x, y, Material::TRUNK);
-    } while (!TCOD_line_step_mt(&x, &y, &data));
+    if (x > 8) { // Leave far part of map clear - space for moon in the sky
+      TCOD_line_init_mt(x, y, x + rng->getInt(-1, 1), 5, &data);
+      do {
+        setMaterial(x, y, Material::TRUNK);
+      } while (!TCOD_line_step_mt(&x, &y, &data));
+    }
   }
   // Leaves
   for (int i = 0; i < width; i++) {
@@ -115,6 +119,31 @@ Map::Map(Inventory* inventory, int width, int height, int displayWidth, int disp
       if (getMaterial(x, y).id == Material::ROCK.id) setMaterial(x, y, k < 10 ? Material::COPPER_ORE : Material::TIN_ORE);
     } while (!TCOD_line_step_mt(&x, &y, &data));
   }
+
+  // Designate a handful of non-adjacent sky tiles as stars that don't dim entirely at night
+  // for (int k = 0; k < 10; k++) {
+    // int x = rng->getInt(0, width), y = rng->getInt(0, 14);
+    // bool adjacent = false;
+    // for (int i = -1; i <= 1; i++) {
+      // for (int j = -1; j <= 1; j++) {
+        // if (getTile(x + i, y + j)->star) adjacent = true;
+      // }
+    // }
+    // if (!adjacent) getTile(x, y)->star = true;
+  // }
+
+  // Moon?
+  getTile(4, 3)->star = true;
+  getTile(4, 2)->star = true;
+  getTile(4, 4)->star = true;
+  getTile(5, 1)->star = true;
+  getTile(5, 2)->star = true;
+  getTile(5, 3)->star = true;
+  getTile(5, 4)->star = true;
+  getTile(5, 5)->star = true;
+  getTile(6, 1)->star = true;
+  getTile(6, 5)->star = true;
+
 }
 
 Tile* Map::getTile(int x, int y) {
@@ -182,6 +211,14 @@ void Map::setDamaged(int x, int y, Damage d) {
   tiles[x + y * width].damage = d;
 }
 
+bool Map::getInUse(int x, int y) {
+  return tiles[x + y * width].inUse;
+}
+
+void Map::setInUse(int x, int y, bool status) {
+  tiles[x + y * width].inUse = status;
+}
+
 int Map::getWater(int x, int y) {
   return tiles[x + y * width].water;
 }
@@ -247,10 +284,11 @@ void Map::render(tcod::Console &console, int cursorX, int cursorY, int tickCount
     // }
   // }
 
-  // Shade by depth and day-night cycle interval
+  // Shade by depth and day-night cycle interval, with designated star sky tiles having a minimum brightness
   for (int i = 0; i < width; i++) {
     for (int j = 0; j < height; j++) {
-      int light = 2 * (height - j) * (0.5 + cos(tickCount / 150.0));
+      int light = getTile(i, j)->star ? MAX(2 * (height - j) * (0.5 + cos(tickCount / 150.0)), 225) : 2 * (height - j) * (0.5 + cos(tickCount / 150.0));
+      // int light = 2 * (height - j) * (0.5 + cos(tickCount / 150.0));
       getTile(i, j)->light = light > 255 ? 255 : light < 0 ? 0 : light;
     }
   }
@@ -265,25 +303,28 @@ void Map::render(tcod::Console &console, int cursorX, int cursorY, int tickCount
               0x2588, TCOD_ColorRGB{0, 0, 0}, TCOD_ColorRGB{0, 0, 125});
           } else {
             // Flicker with blue background in water, and also shade based on depth
-            // Ores need the background color and are unaffected
+            // Ores need the background color and are unaffected, along with workstations with inUse flag
             int ch = 0;
             switch (getDamaged(i, j)) {
               case (INTACT): {
                 TCOD_console_put_char_ex(console.get(), i, j - cursorY + displayHeight / 2,
-                  tile.material.ch, tile.material.fg, tile.material.id == Material::COPPER_ORE.id || tile.material.id == Material::TIN_ORE.id
+                  tile.material.ch, tile.material.fg, tile.inUse ? TCOD_ColorRGB{255, 0, 0}
+                  : tile.material.id == Material::COPPER_ORE.id || tile.material.id == Material::TIN_ORE.id
                   ? tile.material.bg : tile.water == 0
                   ? TCOD_ColorRGB{ tile.light, tile.light, tile.light } : TCOD_ColorRGB{0, 0, 125}); 
                 break;
               }
               case (DAMAGED): {
                 TCOD_console_put_char_ex(console.get(), i, j - cursorY + displayHeight / 2,
-                  tile.material.chDamaged, tile.material.fg, tile.material.id == Material::COPPER_ORE.id || tile.material.id == Material::TIN_ORE.id
+                  tile.material.chDamaged, tile.material.fg, tile.inUse ? TCOD_ColorRGB{255, 0, 0}
+                  : tile.material.id == Material::COPPER_ORE.id || tile.material.id == Material::TIN_ORE.id
                   ? tile.material.bg : tile.water == 0
                   ? TCOD_ColorRGB{ tile.light, tile.light, tile.light } : TCOD_ColorRGB{0, 0, 125}); 
               }
               case (BROKEN): {
                 TCOD_console_put_char_ex(console.get(), i, j - cursorY + displayHeight / 2,
-                  tile.material.chBroken, tile.material.fg, tile.material.id == Material::COPPER_ORE.id || tile.material.id == Material::TIN_ORE.id
+                  tile.material.chBroken, tile.material.fg, tile.inUse ? TCOD_ColorRGB{255, 0, 0}
+                  : tile.material.id == Material::COPPER_ORE.id || tile.material.id == Material::TIN_ORE.id
                   ? tile.material.bg : tile.water == 0
                   ? TCOD_ColorRGB{ tile.light, tile.light, tile.light } : TCOD_ColorRGB{0, 0, 125}); 
               }
@@ -321,8 +362,8 @@ void Map::tick(int tickCount) {
     }
   }
 
-  // Rain - TODO: reenable
-  if (tickCount % 10 == 11) {
+  // Rain
+  if (tickCount % 10 == 0) {
     setWater(rng->getInt(0, width), 0, 1);
   }
 
@@ -348,7 +389,9 @@ void Map::tick(int tickCount) {
           }
         }
       }
-      if (waterNeighbors < 2 && rng->getInt(0, 90) == 0 && !isWalkable(i, j + 1)) setWater(i, j, 0);
+
+      // TODO - reenable
+      if (waterNeighbors < 2 && rng->getInt(0, 90) >= 0 && !isWalkable(i, j + 1)) setWater(i, j, 0);
 
       if (tickCount % 10 == (j % 10)) { // Update layers out of phase with one another
         if (!getTile(i, j)->hasBeenUpdated) {

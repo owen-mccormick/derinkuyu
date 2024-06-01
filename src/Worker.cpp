@@ -11,19 +11,19 @@
 
 Worker::Worker(Map* map, std::priority_queue<Order, std::vector<Order>, compareOrders>* taskQueue, Inventory* inventory, int x, int y)
   : Actor(x, y, '@', TCOD_ColorRGB{255, 255, 0}), order(Order(OrderType::IDLE, 0, 0, 0, 0, 0)),
-  map(map), taskQueue(taskQueue), inventory(inventory), blockBreakTime(0) {};
+  map(map), taskQueue(taskQueue), inventory(inventory), actionTickCounter(0) {};
 
 // TODO - can probably be cleaned up to some extent - delete redundant code
 void Worker::moveTowardDestination() {
   if (
     order.type == OrderType::DIG || order.type == OrderType::BUILD || order.type == OrderType::TILL
-    || order.type == OrderType::PLANT || order.type == OrderType::HARVEST
+    || order.type == OrderType::PLANT || order.type == OrderType::HARVEST || order.type == OrderType::SMELT || order.type == OrderType::MILL
   ) {
     // Reject invalid order designations
     switch (order.type) {
       case OrderType::DIG: {
-        // Can't dig passable tiles
-        if (map->getMaterial(order.interestX, order.interestY).passable) {
+        // Can't dig empty tiles; passable features can still be removed
+        if (map->getMaterial(order.interestX, order.interestY).id == Material::VACUUM.id) {
           return;
         }
         break;
@@ -59,6 +59,22 @@ void Worker::moveTowardDestination() {
         if (map->getMaterial(order.interestX, order.interestY).id != Material::CEREAL_PLANT.id) {
           order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
           // std::cout << "Rejected harvesting of non-plant" << std::endl;
+          return;
+        }
+        break;
+      }
+      case OrderType::SMELT: {
+        if (map->getMaterial(order.interestX, order.interestY).id != Material::SMELTER.id) {
+          order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
+          map->setInUse(order.interestX, order.interestY, false);
+          return;
+        }
+        break;
+      }
+      case OrderType::MILL: {
+        if (map->getMaterial(order.interestX, order.interestY).id != Material::MILLSTONE.id) {
+          order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
+          map->setInUse(order.interestX, order.interestY, false);
           return;
         }
         break;
@@ -160,17 +176,17 @@ void Worker::act(int tickCount) {
         moveTowardDestination();
         // Complete condition for dig
         if (getX() == order.pathX && getY() == order.pathY) {
-          blockBreakTime++;
-          if (blockBreakTime >= 5) {
+          actionTickCounter++;
+          if (actionTickCounter >= 5) {
             switch (map->getDamaged(order.interestX, order.interestY)) {
               case (Damage::INTACT): {
                 map->setDamaged(order.interestX, order.interestY, Damage::DAMAGED);
-                blockBreakTime = 0;
+                actionTickCounter = 0;
                 break;
               }
               case (Damage::DAMAGED): {
                 map->setDamaged(order.interestX, order.interestY, Damage::BROKEN);
-                blockBreakTime = 0;
+                actionTickCounter = 0;
                 break;
               }
               case (Damage::BROKEN): {
@@ -178,16 +194,19 @@ void Worker::act(int tickCount) {
                   inventory->copperOre++;
                 } else if (map->getMaterial(order.interestX, order.interestY).id == Material::TIN_ORE.id) {
                   inventory->tinOre++;
+                } else if (map->getMaterial(order.interestX, order.interestY).id == Material::ROCK.id) {
+                  // TODO - adjust once slate layer is added
+                  inventory->slate++;
                 }
                 map->setMaterial(order.interestX, order.interestY, Material::VACUUM);
                 order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
-                blockBreakTime = 0;
+                actionTickCounter = 0;
                 break;
               }
             }
           }
         } else {
-          blockBreakTime = 0;
+          actionTickCounter = 0;
         }
         break;
       }
@@ -202,9 +221,17 @@ void Worker::act(int tickCount) {
       case OrderType::BUILD: {
         moveTowardDestination();
         if (getX() == order.pathX && getY() == order.pathY) {
-          if (inventory->wood > 0) {
-            map->setMaterial(order.interestX, order.interestY, order.interestMaterial);
-            inventory->wood--;
+          if (order.interestMaterial.id != Material::SMELTER.id && order.interestMaterial.id != Material::MILLSTONE.id) { // Some buildings need stone
+            if (inventory->wood > 0) {
+              map->setMaterial(order.interestX, order.interestY, order.interestMaterial);
+              inventory->wood--;
+            }
+          } else {
+            if (inventory->slate > 0) {
+              map->setMaterial(order.interestX, order.interestY, order.interestMaterial);
+              inventory->slate--;
+              // TODO - add capability to check and edit inventory counts with a method that take a Material argument to make this more concise
+            }
           }
           order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
         }
@@ -241,6 +268,49 @@ void Worker::act(int tickCount) {
           order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
         }
         break;
+      }
+      case OrderType::SMELT: {
+        // Copper and tin in 2 : 1 ratio
+        moveTowardDestination();
+        if (inventory->copperOre < 2 || inventory->tinOre < 1) {
+          order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
+          map->setInUse(order.interestX, order.interestY, false);
+        }
+
+        if (getX() == order.pathX && getY() == order.pathY) {
+          actionTickCounter++;
+          map->setInUse(order.interestX, order.interestY, true);
+
+          if (actionTickCounter >= 30) {
+            actionTickCounter = 0;
+            inventory->copperOre = inventory->copperOre - 2;
+            inventory->tinOre--;
+            inventory->bronze++;
+            map->setInUse(order.interestX, order.interestY, false);
+            order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
+          }
+        }
+      }
+      case OrderType::MILL: {
+        // Flour to grain
+        moveTowardDestination();
+        if (inventory->cerealGrain == 0) {
+          order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
+          map->setInUse(order.interestX, order.interestY, false);
+        }
+
+        if (getX() == order.pathX && getY() == order.pathY) {
+          actionTickCounter++;
+          map->setInUse(order.interestX, order.interestY, true);
+
+          if (actionTickCounter >= 30) {
+            actionTickCounter = 0;
+            inventory->cerealGrain--;
+            inventory->flour++;
+            map->setInUse(order.interestX, order.interestY, false);
+            order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
+          }
+        }
       }
       default: {
         break;
