@@ -26,6 +26,7 @@ class Material {
     static const Material TIN_ORE;
     static const Material SMELTER;
     static const Material MILLSTONE;
+    static const Material POLE;
     std::string name;
     bool passable;
     bool climbable;
@@ -63,6 +64,7 @@ struct Tile {
   bool disintegrate;
   bool star; // Stars in night sky
   bool inUse; // Visual indicator flag for millstones and smelters running
+  bool indestructible; // Immutable far side of the map
   Damage damage;
   Tile() : material(Material::VACUUM), water(0), light(0), actorOccupied(false), emitsLight(false),
     hasBeenUpdated(false), disintegrate(false), damage(Damage::INTACT), inUse(false)/*, star(false)*/ {};
@@ -90,12 +92,15 @@ class Map {
     void deregisterActorPose(int x, int y);
     bool getInUse(int x, int y);
     void setInUse(int x, int y, bool status);
+    bool getIndestructible(int x, int y);
+    uint8_t getLight(int x, int y);
     std::pair<int, int> placePlayer();
     int width, height, displayWidth, displayHeight;
   protected:
     Tile* tiles;
     Tile* getTile(int x, int y);
     int wagonX;
+    int playersPlaced;
     Inventory* inventory;
     bool sunExposure(int x, int y, int tickCount);
 };

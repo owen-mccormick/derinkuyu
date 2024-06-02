@@ -14,9 +14,9 @@ Worker::Worker(Map* map, std::priority_queue<Order, std::vector<Order>, compareO
   map(map), taskQueue(taskQueue), inventory(inventory), actionTickCounter(0) {};
 
 // TODO - can probably be cleaned up to some extent - delete redundant code
-void Worker::moveTowardDestination() {
+void Worker::moveTowardDestination(bool isTraderPresent) {
   if (
-    order.type == OrderType::DIG || order.type == OrderType::BUILD || order.type == OrderType::TILL
+    order.type == OrderType::DIG || order.type == OrderType::BUILD || order.type == OrderType::TILL || order.type == OrderType::TRADE
     || order.type == OrderType::PLANT || order.type == OrderType::HARVEST || order.type == OrderType::SMELT || order.type == OrderType::MILL
   ) {
     // Reject invalid order designations
@@ -75,6 +75,15 @@ void Worker::moveTowardDestination() {
         if (map->getMaterial(order.interestX, order.interestY).id != Material::MILLSTONE.id) {
           order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
           map->setInUse(order.interestX, order.interestY, false);
+          return;
+        }
+        break;
+      }
+      case OrderType::TRADE: {
+        order.interestX = 5; // Set here rather than at queue time
+        order.interestY = 12;
+        if (!isTraderPresent) {
+          order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
           return;
         }
         break;
@@ -149,7 +158,7 @@ void Worker::moveTowardDestination() {
   }
 }
 
-void Worker::act(int tickCount) {
+void Worker::act(int tickCount, bool isTraderPresent) {
   if (tickCount % 2 == 0) {
     switch (order.type) {
       case OrderType::IDLE: {
@@ -165,7 +174,7 @@ void Worker::act(int tickCount) {
         break;
       }
       case OrderType::MOVE: {
-        moveTowardDestination();
+        moveTowardDestination(isTraderPresent);
         // Complete condition for the move
         if (getX() == order.pathX && getY() == order.pathY) {
           order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
@@ -173,7 +182,7 @@ void Worker::act(int tickCount) {
         break;
       }
       case OrderType::DIG: {
-        moveTowardDestination();
+        moveTowardDestination(isTraderPresent);
         // Complete condition for dig
         if (getX() == order.pathX && getY() == order.pathY) {
           actionTickCounter++;
@@ -211,7 +220,7 @@ void Worker::act(int tickCount) {
         break;
       }
       case OrderType::CHOP: {
-        moveTowardDestination();
+        moveTowardDestination(isTraderPresent);
         if (getX() == order.pathX && getY() == order.pathY) {
           recursiveTreeDelete(order.interestX, order.interestY);
           order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
@@ -219,7 +228,7 @@ void Worker::act(int tickCount) {
         break;
       }
       case OrderType::BUILD: {
-        moveTowardDestination();
+        moveTowardDestination(isTraderPresent);
         if (getX() == order.pathX && getY() == order.pathY) {
           if (order.interestMaterial.id != Material::SMELTER.id && order.interestMaterial.id != Material::MILLSTONE.id) { // Some buildings need stone
             if (inventory->wood > 0) {
@@ -238,7 +247,7 @@ void Worker::act(int tickCount) {
         break;
       }
       case OrderType::TILL: {
-        moveTowardDestination();
+        moveTowardDestination(isTraderPresent);
         if (getX() == order.pathX && getY() == order.pathY) {
           map->setMaterial(order.interestX, order.interestY, Material::FARM_PLOT);
           order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
@@ -246,7 +255,7 @@ void Worker::act(int tickCount) {
         break;
       }
       case OrderType::PLANT: {
-        moveTowardDestination();
+        moveTowardDestination(isTraderPresent);
         if (getX() == order.pathX && getY() == order.pathY) {
           if (map->isWalkable(order.interestX, order.interestY - 1) && inventory->CEREAL_SEED > 0) {
             map->setMaterial(order.interestX, order.interestY - 1, Material::CEREAL_SEED);
@@ -258,7 +267,7 @@ void Worker::act(int tickCount) {
         break;
       }
       case OrderType::HARVEST: {
-        moveTowardDestination();
+        moveTowardDestination(isTraderPresent);
         if (getX() == order.pathX && getY() == order.pathY) {
           if (map->getMaterial(order.interestX, order.interestY).id == Material::CEREAL_PLANT.id) {
             map->setMaterial(order.interestX, order.interestY, Material::VACUUM);
@@ -271,7 +280,7 @@ void Worker::act(int tickCount) {
       }
       case OrderType::SMELT: {
         // Copper and tin in 2 : 1 ratio
-        moveTowardDestination();
+        moveTowardDestination(isTraderPresent);
         if (inventory->copperOre < 2 || inventory->tinOre < 1) {
           order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
           map->setInUse(order.interestX, order.interestY, false);
@@ -293,7 +302,7 @@ void Worker::act(int tickCount) {
       }
       case OrderType::MILL: {
         // Flour to grain
-        moveTowardDestination();
+        moveTowardDestination(isTraderPresent);
         if (inventory->cerealGrain == 0) {
           order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
           map->setInUse(order.interestX, order.interestY, false);
@@ -311,6 +320,37 @@ void Worker::act(int tickCount) {
             order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
           }
         }
+      }
+      case OrderType::TRADE: {
+        moveTowardDestination(isTraderPresent);
+        // Insufficient resources
+        if (
+          (order.interestTrade == TradeType::BUY_WOOD && inventory->points < 2)
+          || (order.interestTrade == TradeType::SELL_BRONZE && inventory->bronze == 0)
+          || (order.interestTrade == TradeType::SELL_FLOUR && inventory->flour == 0)
+        ) {
+          order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
+        } else if (getX() == order.pathX && getY() == order.pathY) {
+          switch (order.interestTrade) {
+            case TradeType::BUY_WOOD: {
+              inventory->points = inventory->points - 2;
+              inventory->wood++;
+              break;
+            }
+            case TradeType::SELL_BRONZE: {
+              inventory->bronze--;
+              inventory->points = inventory->points + 6;
+              break;
+            }
+            case TradeType::SELL_FLOUR: {
+              inventory->flour--;
+              inventory->points = inventory->points + 2;
+              break;
+            }
+          }
+          order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
+        }
+        break;
       }
       default: {
         break;

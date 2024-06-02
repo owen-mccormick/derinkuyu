@@ -24,9 +24,10 @@ const Material Material::COPPER_ORE = Material("COPPER ORE", false, false, 0x259
 const Material Material::TIN_ORE = Material("TIN ORE", false, false, 0x2593, 0x2592, 0x2591, 14, TCOD_ColorRGB{100, 85, 75}, TCOD_ColorRGB{180, 180, 180});
 const Material Material::SMELTER = Material("SMELTER", true, false, 'U', 15, TCOD_ColorRGB{100, 85, 75}, TCOD_ColorRGB{255, 255, 255});
 const Material Material::MILLSTONE = Material("MILLSTONE", true, false, 'O', 16, TCOD_ColorRGB{100, 85, 75}, TCOD_ColorRGB{255, 255, 255});
+const Material Material::POLE = Material("POLE", true, false, '|', 17, TCOD_ColorRGB{166, 42, 42}, TCOD_ColorRGB{255, 255, 255});
 
 Map::Map(Inventory* inventory, int width, int height, int displayWidth, int displayHeight) : width(width),
-    height(height), displayWidth(displayWidth), displayHeight(displayHeight), inventory(inventory) {
+    height(height), displayWidth(displayWidth), displayHeight(displayHeight), inventory(inventory), playersPlaced(0) {
 
   tiles = new Tile[width * height];
   TCODRandom* rng = TCODRandom::getInstance();
@@ -42,10 +43,10 @@ Map::Map(Inventory* inventory, int width, int height, int displayWidth, int disp
   }
 
   // Use Bresehnam line tools to draw tree trunks
-  for (int k = 0; k < 15; k++) {
+  for (int k = 0; k < 20; k++) {
     TCOD_bresenham_data_t data;
     int x = rng->getInt(0, width), y = 13;
-    if (x > 8) { // Leave far part of map clear - space for moon in the sky
+    if (x > 11 && x < width - 4) { // Leave far part of map clear for lake, moon, trading boat
       TCOD_line_init_mt(x, y, x + rng->getInt(-1, 1), 5, &data);
       do {
         setMaterial(x, y, Material::TRUNK);
@@ -71,7 +72,7 @@ Map::Map(Inventory* inventory, int width, int height, int displayWidth, int disp
   }
 
   // Place wagon
-  wagonX = rng->getInt(0, width - 6);
+  wagonX = rng->getInt(15, width - 6);
   // setMaterial(wagonX, 13, Material::WHEEL);
   // setMaterial(wagonX + 1, 13, Material::WHEEL);
   // setMaterial(wagonX + 3, 13, Material::WHEEL);
@@ -144,6 +145,30 @@ Map::Map(Inventory* inventory, int width, int height, int displayWidth, int disp
   getTile(6, 1)->star = true;
   getTile(6, 5)->star = true;
 
+  // River / lake channel is static between games
+  for (int i = 0; i < 11; i++) {
+    for (int j = 0; j < 14 + i; j++) {
+      getTile(10 - i, j)->material = Material::VACUUM;
+      if (j >= 15) setWater(10 - i, j, 1);
+      getTile(10 - i, j)->indestructible = true;
+      if (j == 13 + i) { // Riverbed
+        getTile(10 - i, j + 1)->material = Material::DIRT;
+        getTile(10 - i, j + 1)->indestructible = true;
+        getTile(10 - i, j + 2)->material = Material::DIRT;
+        getTile(10 - i, j + 2)->indestructible = true;
+      }
+    }
+    if (i < 6) { // Dock
+      getTile(10 - i, 13)->material = Material::PLANK;
+      if (i % 2 == 0) {
+        for (int j = 13; j < 14 + i; j++) { // Support columns
+          getTile(10 - i, j)->material = Material::PLANK;
+        }
+      } else {
+        getTile(10 - i, 12)->material = Material::POLE;
+      }
+    }
+  }
 }
 
 Tile* Map::getTile(int x, int y) {
@@ -151,13 +176,16 @@ Tile* Map::getTile(int x, int y) {
 }
 
 std::pair<int, int> Map::placePlayer() {
-  TCODRandom* rng = TCODRandom::getInstance();
-  int x, y;
-  do {
-    x = wagonX + rng->getInt(-5, 5);
-    y = 13;
-  } while (!isActorWalkable(x, y));
-  return {x, y};
+  // TCODRandom* rng = TCODRandom::getInstance();
+  // int x, y;
+  // do {
+    // x = wagonX + rng->getInt(-5, 5);
+    // y = 13;
+  // } while (!isActorWalkable(x, y));
+  // return {x, y};
+  // TODO - redo
+  playersPlaced++;
+  return {4 + playersPlaced, 12};
 }
 
 Map::~Map() {
@@ -188,7 +216,9 @@ void Map::deregisterActorPose(int x, int y) {
 }
 
 void Map::setMaterial(int x, int y, Material material) {
-  tiles[x + y * width].material = material;
+  if (!getTile(x, y)->indestructible) {
+    tiles[x + y * width].material = material;
+  }
 }
 
 void Map::setDisintegrate(int x, int y, bool disintegrate) {
@@ -225,6 +255,14 @@ int Map::getWater(int x, int y) {
 
 void Map::setWater(int x, int y, int amount) {
   tiles[x + y * width].water = amount;
+}
+
+bool Map::getIndestructible(int x, int y) {
+  return tiles[x + y * width].indestructible;
+}
+
+uint8_t Map::getLight(int x, int y) {
+  return getTile(x, y)->light;
 }
 
 bool Map::areCoordsValid(int x, int y) {
@@ -298,7 +336,8 @@ void Map::render(tcod::Console &console, int cursorX, int cursorY, int tickCount
     for (int j = cursorY - displayHeight / 2; j < cursorY + displayHeight / 2; j++) {
       if (areCoordsValid(i, j)) {
           Tile tile = *getTile(i, j);
-          if (tile.water > 0 && (tickCount % 48 < 24 || tile.material.id == Material::VACUUM.id)) {
+          // TODO - reenable blinking underwater object behavior
+          if (tile.water > 0 && (tickCount % 48 < -1 || tile.material.id == Material::VACUUM.id)) {
             TCOD_console_put_char_ex(console.get(), i, j - cursorY + displayHeight / 2,
               0x2588, TCOD_ColorRGB{0, 0, 0}, TCOD_ColorRGB{0, 0, 125});
           } else {
@@ -377,43 +416,44 @@ void Map::tick(int tickCount) {
   // Water flow
   for (int i = 0; i < width; i++) {
     for (int j = height; j >= 0; j--) {
-
-      // Water with no neighbors may evaporate
-      int evaporateXOffs[3] = {-1, 0, 1};
-      int evaporateYOffs[3] = {-1, 0, 1};
-      int waterNeighbors = 0;
-      for (int evaporateX = 0; evaporateX < 3; evaporateX++) {
-        for (int evaporateY = 0; evaporateY < 3; evaporateY++) {
-          if (getWater(i + evaporateXOffs[evaporateX], j + evaporateYOffs[evaporateY]) > 0) {
-            waterNeighbors++;
+      if (!(getTile(i, j)->indestructible && j >= 15)) { // Still allows rain over the lake
+        // Water with no neighbors may evaporate
+        int evaporateXOffs[3] = {-1, 0, 1};
+        int evaporateYOffs[3] = {-1, 0, 1};
+        int waterNeighbors = 0;
+        for (int evaporateX = 0; evaporateX < 3; evaporateX++) {
+          for (int evaporateY = 0; evaporateY < 3; evaporateY++) {
+            if (getWater(i + evaporateXOffs[evaporateX], j + evaporateYOffs[evaporateY]) > 0) {
+              waterNeighbors++;
+            }
           }
         }
-      }
 
-      // TODO - reenable
-      if (waterNeighbors < 2 && rng->getInt(0, 90) >= 0 && !isWalkable(i, j + 1)) setWater(i, j, 0);
+        // TODO - reenable
+        if (/*waterNeighbors < 2 && rng->getInt(0, 90) >= 0 &&*/ !isWalkable(i, j + 1) || getWater(i, j + 1) > 0) setWater(i, j, 0);
 
-      if (tickCount % 10 == (j % 10)) { // Update layers out of phase with one another
-        if (!getTile(i, j)->hasBeenUpdated) {
-          // Traverse neighboring tiles in the right order.
-          // int xOffs[3] = {0, (j % 2 == 0) ? 1 : -1, (j % 2 == 0) ? -1 : 1};
-          bool migratesHorizontally = true;//(areCoordsValid(i, j + 1) && getWater(i, j + 1) > 0);
-          bool leftFirst = /*getWater(i + 1, j) > 0 && getWater(i - 1, j) == 0;*/rng->getInt(0, 1) == 0;
-          int xOffs[3] = {0, migratesHorizontally ? ((leftFirst) ? -1 : 1) : 0, migratesHorizontally ? ((leftFirst) ? 1 : -1) : 0};
-          // int xOffs[3] = {0, 1, -1};
-          int yOffs[2] = {1, 0};
-          for (int n = 0; n < 3; n++) {
-            int xOff = xOffs[n];
-            for (int m = 0; m < 2; m++) {
-              int yOff = yOffs[m];
-              if ((isWalkable(i + xOff, j + yOff) && getWater(i, j) > getWater(i + xOff, j + yOff) && !getTile(i + xOff, j + yOff)->hasBeenUpdated)) {
-                getTile(i + xOff, j + yOff)->hasBeenUpdated = true;
-                getTile(i, j)->hasBeenUpdated = true;
-                setWater(i, j, 0);
-                setWater(i + xOff, j + yOff, getMaterial(i + xOff, j + yOff).door ? 0 : 1); // Doors delete water so buildings don't flood
-              } else if (!areCoordsValid(i + xOff, j + yOff)) { // Water can flow off map
-                getTile(i, j)->hasBeenUpdated = true;
-                setWater(i, j, 0);
+        if (tickCount % 10 == (j % 10)) { // Update layers out of phase with one another
+          if (!getTile(i, j)->hasBeenUpdated) {
+            // Traverse neighboring tiles in the right order.
+            // int xOffs[3] = {0, (j % 2 == 0) ? 1 : -1, (j % 2 == 0) ? -1 : 1};
+            bool migratesHorizontally = true;//(areCoordsValid(i, j + 1) && getWater(i, j + 1) > 0);
+            bool leftFirst = /*getWater(i + 1, j) > 0 && getWater(i - 1, j) == 0;*/rng->getInt(0, 1) == 0;
+            int xOffs[3] = {0, migratesHorizontally ? ((leftFirst) ? -1 : 1) : 0, migratesHorizontally ? ((leftFirst) ? 1 : -1) : 0};
+            // int xOffs[3] = {0, 1, -1};
+            int yOffs[2] = {1, 0};
+            for (int n = 0; n < 3; n++) {
+              int xOff = xOffs[n];
+              for (int m = 0; m < 2; m++) {
+                int yOff = yOffs[m];
+                if ((isWalkable(i + xOff, j + yOff) && getWater(i, j) > getWater(i + xOff, j + yOff) && !getTile(i + xOff, j + yOff)->hasBeenUpdated)) {
+                  getTile(i + xOff, j + yOff)->hasBeenUpdated = true;
+                  getTile(i, j)->hasBeenUpdated = true;
+                  setWater(i, j, 0);
+                  setWater(i + xOff, j + yOff, getMaterial(i + xOff, j + yOff).door ? 0 : 1); // Doors delete water so buildings don't flood
+                } else if (!areCoordsValid(i + xOff, j + yOff)) { // Water can flow off map
+                  getTile(i, j)->hasBeenUpdated = true;
+                  setWater(i, j, 0);
+                }
               }
             }
           }

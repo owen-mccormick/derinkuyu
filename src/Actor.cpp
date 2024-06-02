@@ -19,10 +19,12 @@ void Actor::render(tcod::Console& console, int cursorX, int cursorY, int display
 }
 
 void Actor::moveTo(Map* map, int x, int y) {
-  map->deregisterActorPose(this->x, this->y);
-  this->x = x;
-  this->y = y;
-  map->registerActorPose(x, y);
+  if (!map->getIndestructible(x, y) || x >= 6) { // Can't move into river region on map
+    map->deregisterActorPose(this->x, this->y);
+    this->x = x;
+    this->y = y;
+    map->registerActorPose(x, y);
+  }
 }
 
 void Actor::moveTo(Map* map, std::pair<int, int> xy) { moveTo(map, xy.first, xy.second); }

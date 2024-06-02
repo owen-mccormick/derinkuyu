@@ -82,9 +82,11 @@ int main(int argc, char* argv[]) {
   int cursorX = 25, cursorY = 20;
   int designateX = 0, designateY = 0;
   OrderType designationType = OrderType::IDLE; // Idle in this context will mean that nothing is currently being designated
+  // Build menu
   int selectedBuildIndex = 0;
   Material buildMenu[6] = {Material::PLANK, Material::DOOR, Material::LADDER, Material::BED, Material::SMELTER, Material::MILLSTONE}; // Constructible blocks
-
+  // Buy menu
+  int selectedBuyIndex = 0;
   std::vector<Worker*> actors;
   Inventory* inventory = new Inventory(); // May want to switch away from the simple global inventory system at some point
   Map* map = new Map(inventory, WIDTH, HEIGHT, DISPLAYWIDTH, DISPLAYHEIGHT);
@@ -128,13 +130,8 @@ int main(int argc, char* argv[]) {
       tcod::print(console, {57, 0}, "TIN ORE: " + std::to_string(inventory->tinOre), Material::TIN_ORE.bg, std::nullopt);
       tcod::print(console, {0, 1}, "FLOUR: " + std::to_string(inventory->flour), TCOD_ColorRGB{255, 255, 255}, std::nullopt);
       tcod::print(console, {11, 1}, "BRONZE: " + std::to_string(inventory->bronze), Material::COPPER_ORE.bg, std::nullopt);
-
-      if (!paused) {
-        map->tick(tickCount);
-        for (auto actor : actors) {
-          actor->act(tickCount);
-        }
-      }
+      tcod::print(console, {22, 1}, "MORALE: " + std::to_string(inventory->morale), TCOD_ColorRGB{255, 255, 255}, std::nullopt);
+      tcod::print(console, {33, 1}, "POINTS: " + std::to_string(inventory->points), TCOD_ColorRGB{255, 255, 255}, std::nullopt);
 
       // Designation markers
       std::string designateMark = "";
@@ -179,6 +176,66 @@ int main(int argc, char* argv[]) {
       tcod::print(console, {22, 45}, "SMELTER", selectedBuildIndex == 4 ? TCOD_ColorRGB{0, 0, 0} : TCOD_ColorRGB{125, 125, 125}, selectedBuildIndex == 4 ? TCOD_ColorRGB{125, 125, 125} : TCOD_ColorRGB{0, 0, 0});
       tcod::print(console, {30, 45}, "MILLSTONE", selectedBuildIndex == 5 ? TCOD_ColorRGB{0, 0, 0} : TCOD_ColorRGB{125, 125, 125}, selectedBuildIndex == 5 ? TCOD_ColorRGB{125, 125, 125} : TCOD_ColorRGB{0, 0, 0});
 
+      // Print boat and trader (not "real" actors / tiles - just printed out)
+      // Gives the appearance of arriving and sailing away depending on the time
+      // There's probably a much more concise way to do this.
+      int time = tickCount % 1600;
+      bool isTraderPresent = time >= 80 && time < 520;
+      if (time < 600 && time > 0) {
+        // Hull
+        TCOD_console_put_char_ex(console.get(), 0, 13 - cursorY + DISPLAYHEIGHT / 2, 0x2597, TCOD_ColorRGB{191, 151, 96}, TCOD_ColorRGB{156, 32, 32});
+        TCOD_console_put_char_ex(console.get(), 1, 13 - cursorY + DISPLAYHEIGHT / 2, 0x2580, TCOD_ColorRGB{50, 50, 50}, TCOD_ColorRGB{156, 32, 32});
+        TCOD_console_put_char_ex(console.get(), 2, 13 - cursorY + DISPLAYHEIGHT / 2, 0x2596, TCOD_ColorRGB{191, 151, 96}, TCOD_ColorRGB{156, 32, 32});
+        tcod::print(console, {3, 13 - cursorY + DISPLAYHEIGHT / 2}, "#", TCOD_ColorRGB{191, 151, 96}, TCOD_ColorRGB{191, 151, 96});
+        tcod::print(console, {0, 14 - cursorY + DISPLAYHEIGHT / 2}, "#", TCOD_ColorRGB{191, 151, 96}, TCOD_ColorRGB{191, 151, 96});
+        TCOD_console_put_char_ex(console.get(), 1, 14 - cursorY + DISPLAYHEIGHT / 2, 0x2580, TCOD_ColorRGB{156, 32, 32}, TCOD_ColorRGB{191, 151, 96});
+        tcod::print(console, {2, 14 - cursorY + DISPLAYHEIGHT / 2}, "#", TCOD_ColorRGB{191, 151, 96}, TCOD_ColorRGB{191, 151, 96});
+        tcod::print(console, {1, 15 - cursorY + DISPLAYHEIGHT / 2}, "#", TCOD_ColorRGB{191, 151, 96}, TCOD_ColorRGB{191, 151, 96});
+        TCOD_console_put_char_ex(console.get(), 4, 13 - cursorY + DISPLAYHEIGHT / 2, 0x2598, TCOD_ColorRGB{191, 151, 96}, TCOD_ColorRGB{map->getLight(4, 13), map->getLight(4, 13), map->getLight(4, 13)});
+        TCOD_console_put_char_ex(console.get(), 3, 14 - cursorY + DISPLAYHEIGHT / 2, 0x2598, TCOD_ColorRGB{191, 151, 96}, TCOD_ColorRGB{map->getLight(3, 14), map->getLight(3, 14), map->getLight(3, 14)});
+        TCOD_console_put_char_ex(console.get(), 4, 13 - cursorY + DISPLAYHEIGHT / 2, 0x2598, TCOD_ColorRGB{191, 151, 96}, TCOD_ColorRGB{map->getLight(4, 13), map->getLight(4, 13), map->getLight(4, 13)});
+        TCOD_console_put_char_ex(console.get(), 0, 15 - cursorY + DISPLAYHEIGHT / 2, 0x259D, TCOD_ColorRGB{191, 151, 96}, TCOD_ColorRGB{0, 0, 125});
+        TCOD_console_put_char_ex(console.get(), 2, 15 - cursorY + DISPLAYHEIGHT / 2, 0x2598, TCOD_ColorRGB{191, 151, 96}, TCOD_ColorRGB{0, 0, 125});
+        // Mast and sail
+        for (int j = 12; j > 8; j--) {
+          TCOD_console_put_char_ex(console.get(), 1, j - cursorY + DISPLAYHEIGHT / 2, 0x2551, TCOD_ColorRGB{156, 32, 32}, TCOD_ColorRGB{map->getLight(1, j), map->getLight(1, j), map->getLight(1, j)});
+          if (j < 12) {
+            TCOD_console_put_char_ex(console.get(), 0, j - cursorY + DISPLAYHEIGHT / 2, 0x2593, TCOD_ColorRGB{255, 255, 255}, TCOD_ColorRGB{map->getLight(0, j - cursorY + DISPLAYHEIGHT / 2), map->getLight(0, j - cursorY + DISPLAYHEIGHT / 2),map->getLight(0, j - cursorY + DISPLAYHEIGHT / 2)});
+            TCOD_console_put_char_ex(console.get(), 2, j - cursorY + DISPLAYHEIGHT / 2, 0x2593, TCOD_ColorRGB{255, 255, 255}, TCOD_ColorRGB{map->getLight(2, j - cursorY + DISPLAYHEIGHT / 2), map->getLight(2, j - cursorY + DISPLAYHEIGHT / 2),map->getLight(2, j - cursorY + DISPLAYHEIGHT / 2)});
+            TCOD_console_put_char_ex(console.get(), 3, j - cursorY + DISPLAYHEIGHT / 2, 0x2593, TCOD_ColorRGB{255, 255, 255}, TCOD_ColorRGB{map->getLight(3, j - cursorY + DISPLAYHEIGHT / 2), map->getLight(3, j - cursorY + DISPLAYHEIGHT / 2),map->getLight(3, j - cursorY + DISPLAYHEIGHT / 2)});
+          }
+        }
+        // Trader sprite
+        int traderX = 5;
+        if (time < 40) {
+          traderX = 2;
+        } else if (time >= 40 && time < 60) {
+          traderX = 3;
+        } else if (time >= 60 && time < 80) {
+          traderX = 4;
+        } else if (time >= 520 && time < 540) {
+          traderX = 4;
+        } else if (time >= 540 && time < 560) {
+          traderX = 3;
+        } else if (time >= 560 && time < 600) {
+          traderX = 2;
+        }
+        tcod::print(console, {traderX, 12 - cursorY + DISPLAYHEIGHT / 2}, "&", TCOD_ColorRGB{255, 255, 0}, std::nullopt);
+      } else if ((time >= 600 && time < 800) || (time > 1400)) {
+        TCOD_console_put_char_ex(console.get(), 0, 14 - cursorY + DISPLAYHEIGHT / 2, 0x259D, TCOD_ColorRGB{191, 151, 96}, TCOD_ColorRGB{map->getLight(0, 14), map->getLight(0, 14),map->getLight(0, 14)});
+        TCOD_console_put_char_ex(console.get(), 1, 14 - cursorY + DISPLAYHEIGHT / 2, 0x2580, TCOD_ColorRGB{191, 151, 96}, TCOD_ColorRGB{191, 151, 96});
+        TCOD_console_put_char_ex(console.get(), 2, 14 - cursorY + DISPLAYHEIGHT / 2, 0x2598, TCOD_ColorRGB{191, 151, 96}, TCOD_ColorRGB{map->getLight(2, 14), map->getLight(2, 14), map->getLight(2, 14)});
+        TCOD_console_put_char_ex(console.get(), 1, 13 - cursorY + DISPLAYHEIGHT / 2, '|', TCOD_ColorRGB{156, 32, 32}, TCOD_ColorRGB{255, 255, 255});
+        TCOD_console_put_char_ex(console.get(), 2, 13 - cursorY + DISPLAYHEIGHT / 2, 0x2597, TCOD_ColorRGB{255, 255, 0}, TCOD_ColorRGB{map->getLight(2, 13), map->getLight(2, 13), map->getLight(2, 13)});
+      }
+
+      // Actions when hovering over trader
+      if (cursorX == 5 && cursorY == 12 && isTraderPresent) {
+        tcod::print(console, {0, 43}, "BUY WOOD: -2 PTS", selectedBuyIndex == 0 ? TCOD_ColorRGB{0, 0, 0} : TCOD_ColorRGB{125, 125, 125}, selectedBuyIndex == 0 ? TCOD_ColorRGB{125, 125, 125} : TCOD_ColorRGB{0, 0, 0});
+        tcod::print(console, {17, 43}, "SELL BRONZE: +6 PTS", selectedBuyIndex == 1 ? TCOD_ColorRGB{0, 0, 0} : TCOD_ColorRGB{125, 125, 125}, selectedBuyIndex == 1 ? TCOD_ColorRGB{125, 125, 125} : TCOD_ColorRGB{0, 0, 0});
+        tcod::print(console, {37, 43}, "SELL FLOUR: +2 PTS", selectedBuyIndex == 2 ? TCOD_ColorRGB{0, 0, 0} : TCOD_ColorRGB{125, 125, 125}, selectedBuyIndex == 2 ? TCOD_ColorRGB{125, 125, 125} : TCOD_ColorRGB{0, 0, 0});
+      }
+
       // Print scheduled task indicators
       // We can't iterate through the queue, so we empty it to a vector and restore it afterwards
       std::vector<Order> orders;
@@ -193,6 +250,13 @@ int main(int argc, char* argv[]) {
       for (auto actor : actors) {
         if (actor->order.type != OrderType::DIG) {
           orderOverlayPrint(console, actor->order, cursorY, DISPLAYHEIGHT);
+        }
+      }
+
+      if (!paused) {
+        map->tick(tickCount);
+        for (auto actor : actors) {
+          actor->act(tickCount, isTraderPresent);
         }
       }
     }
@@ -263,29 +327,47 @@ int main(int argc, char* argv[]) {
               }
               break;
             }
+            // Z, X, and C control both the build and buy / sell menus depending on whether or not the cursor is hovering over the trader
             // Build designations and build menu left and right
             case SDL_SCANCODE_Z: {
-              if (selectedBuildIndex > 0) selectedBuildIndex--;
+              int time = tickCount % 1600;
+              if (cursorX == 5 && cursorY == 12 && time >= 80 && time < 520 && selectedBuyIndex > 0) {
+                selectedBuyIndex--;
+              } else if (selectedBuildIndex > 0) selectedBuildIndex--;
               break;
             }
             case SDL_SCANCODE_X: {
-              if (selectedBuildIndex == 0) {
-                taskQueue->push(Order(OrderType::BUILD, 0, 0, 0, cursorX, cursorY, Material::PLANK));
-              } else if (selectedBuildIndex == 1) {
-                taskQueue->push(Order(OrderType::BUILD, 0, 0, 0, cursorX, cursorY, Material::DOOR));
-              } else if (selectedBuildIndex == 2) {
-                taskQueue->push(Order(OrderType::BUILD, 0, 0, 0, cursorX, cursorY, Material::LADDER));
-              } else if (selectedBuildIndex == 3) {
-                taskQueue->push(Order(OrderType::BUILD, 0, 0, 0, cursorX, cursorY, Material::BED));
-              } else if (selectedBuildIndex == 4) {
-                taskQueue->push(Order(OrderType::BUILD, 0, 0, 0, cursorX, cursorY, Material::SMELTER));
-              } else if (selectedBuildIndex == 5) {
-                taskQueue->push(Order(OrderType::BUILD, 0, 0, 0, cursorX, cursorY, Material::MILLSTONE));
+              int time = tickCount % 1600;
+              if (cursorX == 5 && cursorY == 12 && time >= 80 && time < 520) {
+                if (selectedBuyIndex == 0 && inventory->points >= 2) {
+                  taskQueue->push(Order(OrderType::TRADE, 1, 0, 0, 0, 0, TradeType::BUY_WOOD));
+                } else if (selectedBuyIndex == 1 && inventory->bronze > 0) {
+                  taskQueue->push(Order(OrderType::TRADE, 1, 0, 0, 0, 0, TradeType::SELL_BRONZE));
+                } else if (selectedBuyIndex == 2 && inventory->flour > 0) {
+                  taskQueue->push(Order(OrderType::TRADE, 1, 0, 0, 0, 0, TradeType::SELL_FLOUR));
+                }
+              } else {
+                if (selectedBuildIndex == 0) {
+                  taskQueue->push(Order(OrderType::BUILD, 0, 0, 0, cursorX, cursorY, Material::PLANK));
+                } else if (selectedBuildIndex == 1) {
+                  taskQueue->push(Order(OrderType::BUILD, 0, 0, 0, cursorX, cursorY, Material::DOOR));
+                } else if (selectedBuildIndex == 2) {
+                  taskQueue->push(Order(OrderType::BUILD, 0, 0, 0, cursorX, cursorY, Material::LADDER));
+                } else if (selectedBuildIndex == 3) {
+                  taskQueue->push(Order(OrderType::BUILD, 0, 0, 0, cursorX, cursorY, Material::BED));
+                } else if (selectedBuildIndex == 4) {
+                  taskQueue->push(Order(OrderType::BUILD, 0, 0, 0, cursorX, cursorY, Material::SMELTER));
+                } else if (selectedBuildIndex == 5) {
+                  taskQueue->push(Order(OrderType::BUILD, 0, 0, 0, cursorX, cursorY, Material::MILLSTONE));
+                }
               }
               break;
             }
             case SDL_SCANCODE_C: {
-              if (selectedBuildIndex < 5) selectedBuildIndex++;
+              int time = tickCount % 1600;
+              if (cursorX == 5 && cursorY == 12 && time >= 80 && time < 520 && selectedBuyIndex < 3) {
+                selectedBuyIndex++;
+              } else if (selectedBuildIndex < 5) selectedBuildIndex++;
               break;
             }
             case SDL_SCANCODE_BACKSPACE: {
@@ -293,6 +375,7 @@ int main(int argc, char* argv[]) {
                 actor->order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
               }
               while (!taskQueue->empty()) taskQueue->pop();
+              break;
             }
             // case SDL_SCANCODE_BACKSPACE: {
               // map->setMaterial(cursorX, cursorY, Material::VACUUM);
