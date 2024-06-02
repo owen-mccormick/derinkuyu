@@ -25,6 +25,7 @@ const Material Material::TIN_ORE = Material("TIN ORE", false, false, 0x2593, 0x2
 const Material Material::SMELTER = Material("SMELTER", true, false, 'U', 15, TCOD_ColorRGB{100, 85, 75}, TCOD_ColorRGB{255, 255, 255});
 const Material Material::MILLSTONE = Material("MILLSTONE", true, false, 'O', 16, TCOD_ColorRGB{100, 85, 75}, TCOD_ColorRGB{255, 255, 255});
 const Material Material::POLE = Material("POLE", true, false, '|', 17, TCOD_ColorRGB{166, 42, 42}, TCOD_ColorRGB{255, 255, 255});
+const Material Material::OVEN = Material("OVEN", true, false, 0x2610, 18, TCOD_ColorRGB{100, 85, 75}, TCOD_ColorRGB{255, 255, 255});
 
 Map::Map(Inventory* inventory, int width, int height, int displayWidth, int displayHeight) : width(width),
     height(height), displayWidth(displayWidth), displayHeight(displayHeight), inventory(inventory), playersPlaced(0) {
@@ -377,6 +378,9 @@ void Map::render(tcod::Console &console, int cursorX, int cursorY, int tickCount
 void Map::tick(int tickCount) {
   TCODRandom* rng = TCODRandom::getInstance();
 
+  // Sheltered beds contribute to morale
+  int bedCount = 0;
+
   for (int i = 0; i < width; i++) {
     for (int j = 0; j < height; j++) {
       // Disintegrate tile flag functionality
@@ -398,8 +402,11 @@ void Map::tick(int tickCount) {
       if (getMaterial(i, j).id == Material::CEREAL_PLANT.id && getMaterial(i, j + 1).id != Material::FARM_PLOT.id) {
         setMaterial(i, j, Material::VACUUM);
       }
+      if (getMaterial(i, j).id == Material::BED.id && !sunExposure(i, j, tickCount)) bedCount++;
     }
   }
+
+  inventory->moraleBed = MIN(3, bedCount);
 
   // Rain
   if (tickCount % 10 == 0) {

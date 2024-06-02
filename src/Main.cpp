@@ -84,7 +84,7 @@ int main(int argc, char* argv[]) {
   OrderType designationType = OrderType::IDLE; // Idle in this context will mean that nothing is currently being designated
   // Build menu
   int selectedBuildIndex = 0;
-  Material buildMenu[6] = {Material::PLANK, Material::DOOR, Material::LADDER, Material::BED, Material::SMELTER, Material::MILLSTONE}; // Constructible blocks
+  Material buildMenu[7] = {Material::PLANK, Material::DOOR, Material::LADDER, Material::BED, Material::SMELTER, Material::MILLSTONE, Material::OVEN}; // Constructible blocks
   // Buy menu
   int selectedBuyIndex = 0;
   std::vector<Worker*> actors;
@@ -123,15 +123,16 @@ int main(int argc, char* argv[]) {
       if (tickCount % 36 >= 0) tcod::print(console, {cursorX, DISPLAYHEIGHT / 2}, "X", TCOD_ColorRGB{255, 255, 0}, std::nullopt);
       // Inventory display
       tcod::print(console, {0, 0}, "WOOD: "  + std::to_string(inventory->wood), Material::TRUNK.fg, std::nullopt);
-      tcod::print(console, {10, 0}, "SEED: " + std::to_string(inventory->CEREAL_SEED), Material::CEREAL_SEED.fg, std::nullopt);
+      tcod::print(console, {10, 0}, "SEED: " + std::to_string(inventory->cerealSeed), Material::CEREAL_SEED.fg, std::nullopt);
       tcod::print(console, {20, 0}, "GRAIN: " + std::to_string(inventory->cerealGrain), Material::CEREAL_PLANT.fg, std::nullopt);
       tcod::print(console, {31, 0}, "STONE: " + std::to_string(inventory->slate), Material::ROCK.bg, std::nullopt);
       tcod::print(console, {41, 0}, "COPPER ORE: " + std::to_string(inventory->copperOre), Material::COPPER_ORE.bg, std::nullopt);
       tcod::print(console, {57, 0}, "TIN ORE: " + std::to_string(inventory->tinOre), Material::TIN_ORE.bg, std::nullopt);
       tcod::print(console, {0, 1}, "FLOUR: " + std::to_string(inventory->flour), TCOD_ColorRGB{255, 255, 255}, std::nullopt);
-      tcod::print(console, {11, 1}, "BRONZE: " + std::to_string(inventory->bronze), Material::COPPER_ORE.bg, std::nullopt);
-      tcod::print(console, {22, 1}, "MORALE: " + std::to_string(inventory->morale), TCOD_ColorRGB{255, 255, 255}, std::nullopt);
-      tcod::print(console, {33, 1}, "POINTS: " + std::to_string(inventory->points), TCOD_ColorRGB{255, 255, 255}, std::nullopt);
+      tcod::print(console, {11, 1}, "BREAD: " + std::to_string(inventory->bread), TCOD_ColorRGB{166, 42, 42}, std::nullopt);
+      tcod::print(console, {22, 1}, "BRONZE: " + std::to_string(inventory->bronze), Material::COPPER_ORE.bg, std::nullopt);
+      tcod::print(console, {33, 1}, "MORALE: " + std::to_string(inventory->moraleBed + inventory->moraleFood), TCOD_ColorRGB{255, 255, 255}, std::nullopt);
+      tcod::print(console, {44, 1}, "POINTS: " + std::to_string(inventory->points), TCOD_ColorRGB{255, 255, 255}, std::nullopt);
 
       // Designation markers
       std::string designateMark = "";
@@ -175,6 +176,18 @@ int main(int argc, char* argv[]) {
       tcod::print(console, {18, 45}, "BED", selectedBuildIndex == 3 ? TCOD_ColorRGB{0, 0, 0} : TCOD_ColorRGB{125, 125, 125}, selectedBuildIndex == 3 ? TCOD_ColorRGB{125, 125, 125} : TCOD_ColorRGB{0, 0, 0});
       tcod::print(console, {22, 45}, "SMELTER", selectedBuildIndex == 4 ? TCOD_ColorRGB{0, 0, 0} : TCOD_ColorRGB{125, 125, 125}, selectedBuildIndex == 4 ? TCOD_ColorRGB{125, 125, 125} : TCOD_ColorRGB{0, 0, 0});
       tcod::print(console, {30, 45}, "MILLSTONE", selectedBuildIndex == 5 ? TCOD_ColorRGB{0, 0, 0} : TCOD_ColorRGB{125, 125, 125}, selectedBuildIndex == 5 ? TCOD_ColorRGB{125, 125, 125} : TCOD_ColorRGB{0, 0, 0});
+      tcod::print(console, {40, 45}, "OVEN", selectedBuildIndex == 6 ? TCOD_ColorRGB{0, 0, 0} : TCOD_ColorRGB{125, 125, 125}, selectedBuildIndex == 6 ? TCOD_ColorRGB{125, 125, 125} : TCOD_ColorRGB{0, 0, 0});
+
+      // Update morale from food
+      if (tickCount % 1600 == 0) {
+        inventory->moraleFood = 0;
+        for (int k = 0; k < 3; k++) {
+          if (inventory->bread > 0) {
+            inventory->bread--;
+            inventory->moraleFood++;
+          }
+        }
+      }
 
       // Print boat and trader (not "real" actors / tiles - just printed out)
       // Gives the appearance of arriving and sailing away depending on the time
@@ -231,9 +244,13 @@ int main(int argc, char* argv[]) {
 
       // Actions when hovering over trader
       if (cursorX == 5 && cursorY == 12 && isTraderPresent) {
-        tcod::print(console, {0, 43}, "BUY WOOD: -2 PTS", selectedBuyIndex == 0 ? TCOD_ColorRGB{0, 0, 0} : TCOD_ColorRGB{125, 125, 125}, selectedBuyIndex == 0 ? TCOD_ColorRGB{125, 125, 125} : TCOD_ColorRGB{0, 0, 0});
-        tcod::print(console, {17, 43}, "SELL BRONZE: +6 PTS", selectedBuyIndex == 1 ? TCOD_ColorRGB{0, 0, 0} : TCOD_ColorRGB{125, 125, 125}, selectedBuyIndex == 1 ? TCOD_ColorRGB{125, 125, 125} : TCOD_ColorRGB{0, 0, 0});
-        tcod::print(console, {37, 43}, "SELL FLOUR: +2 PTS", selectedBuyIndex == 2 ? TCOD_ColorRGB{0, 0, 0} : TCOD_ColorRGB{125, 125, 125}, selectedBuyIndex == 2 ? TCOD_ColorRGB{125, 125, 125} : TCOD_ColorRGB{0, 0, 0});
+        if (inventory->moraleFood + inventory->moraleBed >= 6) {
+          tcod::print(console, {0, 43}, "BUY WOOD: -2 PTS", selectedBuyIndex == 0 ? TCOD_ColorRGB{0, 0, 0} : TCOD_ColorRGB{125, 125, 125}, selectedBuyIndex == 0 ? TCOD_ColorRGB{125, 125, 125} : TCOD_ColorRGB{0, 0, 0});
+          tcod::print(console, {17, 43}, "SELL BRONZE: +6 PTS", selectedBuyIndex == 1 ? TCOD_ColorRGB{0, 0, 0} : TCOD_ColorRGB{125, 125, 125}, selectedBuyIndex == 1 ? TCOD_ColorRGB{125, 125, 125} : TCOD_ColorRGB{0, 0, 0});
+          tcod::print(console, {37, 43}, "SELL FLOUR: +2 PTS", selectedBuyIndex == 2 ? TCOD_ColorRGB{0, 0, 0} : TCOD_ColorRGB{125, 125, 125}, selectedBuyIndex == 2 ? TCOD_ColorRGB{125, 125, 125} : TCOD_ColorRGB{0, 0, 0});
+        } else {
+          tcod::print(console, {0, 43}, "TRADING NOT AVAILABLE - MORALE MUST BE 6 OR GREATER!", TCOD_ColorRGB{0, 0, 0}, TCOD_ColorRGB{125, 125, 125});
+        }
       }
 
       // Print scheduled task indicators
@@ -321,9 +338,11 @@ int main(int argc, char* argv[]) {
             }
             case SDL_SCANCODE_R: {
               if (map->getMaterial(cursorX, cursorY).id == Material::SMELTER.id) {
-                taskQueue->push(Order(OrderType::SMELT, 0, 0, 0, cursorX, cursorY));
+                taskQueue->push(Order(OrderType::FABRICATE, 0, 0, 0, cursorX, cursorY, FabricateType::SMELT));
               } else if (map->getMaterial(cursorX, cursorY).id == Material::MILLSTONE.id) {
-                taskQueue->push(Order(OrderType::MILL, 0, 0, 0, cursorX, cursorY));
+                taskQueue->push(Order(OrderType::FABRICATE, 0, 0, 0, cursorX, cursorY, FabricateType::MILL));
+              } else if (map->getMaterial(cursorX, cursorY).id == Material::OVEN.id) {
+                taskQueue->push(Order(OrderType::FABRICATE, 0, 0, 0, cursorX, cursorY, FabricateType::BAKE));
               }
               break;
             }
@@ -339,12 +358,14 @@ int main(int argc, char* argv[]) {
             case SDL_SCANCODE_X: {
               int time = tickCount % 1600;
               if (cursorX == 5 && cursorY == 12 && time >= 80 && time < 520) {
-                if (selectedBuyIndex == 0 && inventory->points >= 2) {
-                  taskQueue->push(Order(OrderType::TRADE, 1, 0, 0, 0, 0, TradeType::BUY_WOOD));
-                } else if (selectedBuyIndex == 1 && inventory->bronze > 0) {
-                  taskQueue->push(Order(OrderType::TRADE, 1, 0, 0, 0, 0, TradeType::SELL_BRONZE));
-                } else if (selectedBuyIndex == 2 && inventory->flour > 0) {
-                  taskQueue->push(Order(OrderType::TRADE, 1, 0, 0, 0, 0, TradeType::SELL_FLOUR));
+                if (inventory->moraleBed + inventory->moraleFood >= 6) {
+                  if (selectedBuyIndex == 0 && inventory->points >= 2) {
+                    taskQueue->push(Order(OrderType::TRADE, 1, 0, 0, 0, 0, TradeType::BUY_WOOD));
+                  } else if (selectedBuyIndex == 1 && inventory->bronze > 0) {
+                    taskQueue->push(Order(OrderType::TRADE, 1, 0, 0, 0, 0, TradeType::SELL_BRONZE));
+                  } else if (selectedBuyIndex == 2 && inventory->flour > 0) {
+                    taskQueue->push(Order(OrderType::TRADE, 1, 0, 0, 0, 0, TradeType::SELL_FLOUR));
+                  }
                 }
               } else {
                 if (selectedBuildIndex == 0) {
@@ -359,6 +380,8 @@ int main(int argc, char* argv[]) {
                   taskQueue->push(Order(OrderType::BUILD, 0, 0, 0, cursorX, cursorY, Material::SMELTER));
                 } else if (selectedBuildIndex == 5) {
                   taskQueue->push(Order(OrderType::BUILD, 0, 0, 0, cursorX, cursorY, Material::MILLSTONE));
+                } else if (selectedBuildIndex == 6) {
+                  taskQueue->push(Order(OrderType::BUILD, 0, 0, 0, cursorX, cursorY, Material::OVEN));
                 }
               }
               break;
@@ -367,7 +390,7 @@ int main(int argc, char* argv[]) {
               int time = tickCount % 1600;
               if (cursorX == 5 && cursorY == 12 && time >= 80 && time < 520 && selectedBuyIndex < 3) {
                 selectedBuyIndex++;
-              } else if (selectedBuildIndex < 5) selectedBuildIndex++;
+              } else if (selectedBuildIndex < 6) selectedBuildIndex++;
               break;
             }
             case SDL_SCANCODE_BACKSPACE: {

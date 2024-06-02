@@ -17,7 +17,7 @@ Worker::Worker(Map* map, std::priority_queue<Order, std::vector<Order>, compareO
 void Worker::moveTowardDestination(bool isTraderPresent) {
   if (
     order.type == OrderType::DIG || order.type == OrderType::BUILD || order.type == OrderType::TILL || order.type == OrderType::TRADE
-    || order.type == OrderType::PLANT || order.type == OrderType::HARVEST || order.type == OrderType::SMELT || order.type == OrderType::MILL
+    || order.type == OrderType::PLANT || order.type == OrderType::HARVEST || order.type == OrderType::FABRICATE
   ) {
     // Reject invalid order designations
     switch (order.type) {
@@ -63,18 +63,18 @@ void Worker::moveTowardDestination(bool isTraderPresent) {
         }
         break;
       }
-      case OrderType::SMELT: {
-        if (map->getMaterial(order.interestX, order.interestY).id != Material::SMELTER.id) {
+      case OrderType::FABRICATE: {
+        if (order.interestFabricate == FabricateType::SMELT && map->getMaterial(order.interestX, order.interestY).id != Material::SMELTER.id) {
           order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
-          map->setInUse(order.interestX, order.interestY, false);
+          // map->setInUse(order.interestX, order.interestY, false);
           return;
-        }
-        break;
-      }
-      case OrderType::MILL: {
-        if (map->getMaterial(order.interestX, order.interestY).id != Material::MILLSTONE.id) {
+        } else if (order.interestFabricate == FabricateType::MILL && map->getMaterial(order.interestX, order.interestY).id != Material::MILLSTONE.id) {
           order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
-          map->setInUse(order.interestX, order.interestY, false);
+          // map->setInUse(order.interestX, order.interestY, false);
+          return;
+        } else if (order.interestFabricate == FabricateType::BAKE && map->getMaterial(order.interestX, order.interestY).id != Material::OVEN.id) {
+          order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
+          // map->setInUse(order.interestX, order.interestY, false);
           return;
         }
         break;
@@ -230,7 +230,7 @@ void Worker::act(int tickCount, bool isTraderPresent) {
       case OrderType::BUILD: {
         moveTowardDestination(isTraderPresent);
         if (getX() == order.pathX && getY() == order.pathY) {
-          if (order.interestMaterial.id != Material::SMELTER.id && order.interestMaterial.id != Material::MILLSTONE.id) { // Some buildings need stone
+          if (order.interestMaterial.id != Material::SMELTER.id && order.interestMaterial.id != Material::MILLSTONE.id && order.interestMaterial.id != Material::OVEN.id) { // Some buildings need stone
             if (inventory->wood > 0) {
               map->setMaterial(order.interestX, order.interestY, order.interestMaterial);
               inventory->wood--;
@@ -257,9 +257,9 @@ void Worker::act(int tickCount, bool isTraderPresent) {
       case OrderType::PLANT: {
         moveTowardDestination(isTraderPresent);
         if (getX() == order.pathX && getY() == order.pathY) {
-          if (map->isWalkable(order.interestX, order.interestY - 1) && inventory->CEREAL_SEED > 0) {
+          if (map->isWalkable(order.interestX, order.interestY - 1) && inventory->cerealSeed > 0) {
             map->setMaterial(order.interestX, order.interestY - 1, Material::CEREAL_SEED);
-            inventory->CEREAL_SEED--;
+            inventory->cerealSeed--;
 
           }
           order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
@@ -271,55 +271,12 @@ void Worker::act(int tickCount, bool isTraderPresent) {
         if (getX() == order.pathX && getY() == order.pathY) {
           if (map->getMaterial(order.interestX, order.interestY).id == Material::CEREAL_PLANT.id) {
             map->setMaterial(order.interestX, order.interestY, Material::VACUUM);
-            inventory->CEREAL_SEED = inventory->CEREAL_SEED + 2;
+            inventory->cerealSeed = inventory->cerealSeed + 2;
             inventory->cerealGrain++;
           }
           order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
         }
         break;
-      }
-      case OrderType::SMELT: {
-        // Copper and tin in 2 : 1 ratio
-        moveTowardDestination(isTraderPresent);
-        if (inventory->copperOre < 2 || inventory->tinOre < 1) {
-          order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
-          map->setInUse(order.interestX, order.interestY, false);
-        }
-
-        if (getX() == order.pathX && getY() == order.pathY) {
-          actionTickCounter++;
-          map->setInUse(order.interestX, order.interestY, true);
-
-          if (actionTickCounter >= 30) {
-            actionTickCounter = 0;
-            inventory->copperOre = inventory->copperOre - 2;
-            inventory->tinOre--;
-            inventory->bronze++;
-            map->setInUse(order.interestX, order.interestY, false);
-            order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
-          }
-        }
-      }
-      case OrderType::MILL: {
-        // Flour to grain
-        moveTowardDestination(isTraderPresent);
-        if (inventory->cerealGrain == 0) {
-          order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
-          map->setInUse(order.interestX, order.interestY, false);
-        }
-
-        if (getX() == order.pathX && getY() == order.pathY) {
-          actionTickCounter++;
-          map->setInUse(order.interestX, order.interestY, true);
-
-          if (actionTickCounter >= 30) {
-            actionTickCounter = 0;
-            inventory->cerealGrain--;
-            inventory->flour++;
-            map->setInUse(order.interestX, order.interestY, false);
-            order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
-          }
-        }
       }
       case OrderType::TRADE: {
         moveTowardDestination(isTraderPresent);
@@ -345,6 +302,40 @@ void Worker::act(int tickCount, bool isTraderPresent) {
             case TradeType::SELL_FLOUR: {
               inventory->flour--;
               inventory->points = inventory->points + 2;
+              break;
+            }
+          }
+          order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
+        }
+        break;
+      }
+      case OrderType::FABRICATE: {
+        moveTowardDestination(isTraderPresent);
+        if (
+          (order.interestFabricate == FabricateType::SMELT && (inventory->copperOre < 2 || inventory->tinOre < 1))
+          || (order.interestFabricate == FabricateType::MILL && inventory->cerealGrain == 0)
+          || (order.interestFabricate == FabricateType::BAKE && inventory->flour == 0)
+        ) {
+          order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
+        } else if (getX() == order.pathX && getY() == order.pathY) {
+          switch (order.interestFabricate) {
+            case FabricateType::SMELT: {
+              // 2 to 1 ratio of copper and tin
+              inventory->copperOre = inventory->copperOre - 2;
+              inventory->tinOre--;
+              inventory->bronze++;
+              break;
+            }
+            case FabricateType::MILL: {
+              // Grain to flour
+              inventory->cerealGrain--;
+              inventory->flour++;
+              break;
+            }
+            case FabricateType::BAKE: {
+              // Flour to bread
+              inventory->bread++;
+              inventory->flour--;
               break;
             }
           }

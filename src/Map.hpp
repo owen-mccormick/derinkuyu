@@ -27,6 +27,7 @@ class Material {
     static const Material SMELTER;
     static const Material MILLSTONE;
     static const Material POLE;
+    static const Material OVEN;
     std::string name;
     bool passable;
     bool climbable;
