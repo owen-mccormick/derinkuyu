@@ -19,7 +19,8 @@ enum class OrderType {
 enum class TradeType {
   BUY_WOOD,
   SELL_BRONZE,
-  SELL_FLOUR
+  SELL_FLOUR,
+  SELL_GEMS
 };
 
 enum class FabricateType {

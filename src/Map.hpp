@@ -28,6 +28,7 @@ class Material {
     static const Material MILLSTONE;
     static const Material POLE;
     static const Material OVEN;
+    static const Material GEM;
     std::string name;
     bool passable;
     bool climbable;
@@ -87,7 +88,7 @@ class Map {
     Material getMaterial(int x, int y);
     int getWater(int x, int y);
     void setWater(int x, int y, int amount);
-    void tick(int tickCount);
+    void tick(int tickCount, bool end);
     bool areCoordsValid(int x, int y);
     void registerActorPose(int x, int y);
     void deregisterActorPose(int x, int y);

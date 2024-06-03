@@ -206,6 +206,8 @@ void Worker::act(int tickCount, bool isTraderPresent) {
                 } else if (map->getMaterial(order.interestX, order.interestY).id == Material::ROCK.id) {
                   // TODO - adjust once slate layer is added
                   inventory->slate++;
+                } else if (map->getMaterial(order.interestX, order.interestY).id == Material::GEM.id) {
+                  inventory->gems++;
                 }
                 map->setMaterial(order.interestX, order.interestY, Material::VACUUM);
                 order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
@@ -285,6 +287,7 @@ void Worker::act(int tickCount, bool isTraderPresent) {
           (order.interestTrade == TradeType::BUY_WOOD && inventory->points < 2)
           || (order.interestTrade == TradeType::SELL_BRONZE && inventory->bronze == 0)
           || (order.interestTrade == TradeType::SELL_FLOUR && inventory->flour == 0)
+          || (order.interestTrade == TradeType::SELL_GEMS && inventory->gems == 0)
         ) {
           order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);
         } else if (getX() == order.pathX && getY() == order.pathY) {
@@ -303,6 +306,10 @@ void Worker::act(int tickCount, bool isTraderPresent) {
               inventory->flour--;
               inventory->points = inventory->points + 2;
               break;
+            }
+            case TradeType::SELL_GEMS: {
+              inventory->gems--;
+              inventory->points = inventory->points + 10;
             }
           }
           order = Order(OrderType::IDLE, 0, 0, 0, 0, 0);

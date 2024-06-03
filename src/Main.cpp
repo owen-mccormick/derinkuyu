@@ -66,7 +66,7 @@ int main(int argc, char* argv[]) {
   params.console = console.get();  // Derive the window size from the console size.
   params.tileset = tileset.get();
   params.window_title = "Derinkuyu";
-  params.sdl_window_flags = SDL_WINDOW_MINIMIZED;
+  params.sdl_window_flags = SDL_WINDOW_FULLSCREEN_DESKTOP;
   params.vsync = true;
   params.argc = argc;  // This allows some user-control of the context.
   params.argv = argv;
@@ -98,41 +98,47 @@ int main(int argc, char* argv[]) {
   actors.push_back(worker1);
   actors.push_back(worker2);
 
+  // For game timer
+  float timeRemaining = 500;
+
   // std::pair<int, int> playerPos = map->placePlayer();
   // Actor* player = new Actor(playerPos.first, playerPos.second, "@", tcod::ColorRGB(255, 255, 255));
   // actors.push_back(player);
 
   while (true) {
     float deltaTime = timer.sync(desiredFPS);
+    timeRemaining -= deltaTime;
     TCOD_console_clear(console.get());
     if (!credits) {
+      timeRemaining = 500;
       // std::string title = "##           #      #               \n# # ### ###     ##  # # # # # # # # \n# # ##  #    #  # # ##  # # ### # # \n# # ### #    ## # # # # ###   # ### \n##                          ###     \n";
       // std::string title = ".-. .-. .-. .-. . . . . . . . . . . \n|  )|-  |(   |  |\\| |<  | |  |  | | \n`-' `-' ' ' `-' ' ` ' ` `-'  `  `-' \n";
       // std::string title = " HHHHHHH                  HH          HH                             \n.HH....HH                ..          .HH              HH   HH        \n.HH    .HH  HHHHH  HHHHHH HH HHHHHHH .HH  HH HH   HH ..HH HH  HH   HH\n.HH    .HH HH...HH..HH..H.HH..HH...HH.HH HH .HH  .HH  ..HHH  .HH  .HH\n.HH    .HH.HHHHHHH .HH . .HH .HH  .HH.HHHH  .HH  .HH   .HH   .HH  .HH\n.HH    HH .HH....  .HH   .HH .HH  .HH.HH.HH .HH  .HH   HH    .HH  .HH\n.HHHHHHH  ..HHHHHH.HHH   .HH HHH  .HH.HH..HH..HHHHHH  HH     ..HHHHHH\n.......    ...... ...    .. ...   .. ..  ..  ......  ..       ...... \n";
       std::string title = "######╗ #######╗######╗ ##╗###╗   ##╗##╗  ##╗##╗   ##╗##╗   ##╗##╗   ##╗\n##╔══##╗##╔════╝##╔══##╗##║####╗  ##║##║ ##╔╝##║   ##║╚##╗ ##╔╝##║   ##║\n##║  ##║#####╗  ######╔╝##║##╔##╗ ##║#####╔╝ ##║   ##║ ╚####╔╝ ##║   ##║\n##║  ##║##╔══╝  ##╔══##╗##║##║╚##╗##║##╔═##╗ ##║   ##║  ╚##╔╝  ##║   ##║\n######╔╝#######╗##║  ##║##║##║ ╚####║##║  ##╗╚######╔╝   ##║   ╚######╔╝\n╚═════╝ ╚══════╝╚═╝  ╚═╝╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝ ╚═════╝    ╚═╝    ╚═════╝ \n";
       tcod::print(console, {DISPLAYWIDTH / 50, DISPLAYHEIGHT / 5}, title, TCOD_ColorRGB{100, 85, 75}, std::nullopt);
-      tcod::print(console, {DISPLAYWIDTH / 50, DISPLAYHEIGHT / 3 + 10}, "A sandbox base-building game by Owen McCormick", TCOD_ColorRGB{155, 118, 83}, std::nullopt);
+      tcod::print(console, {DISPLAYWIDTH / 50, DISPLAYHEIGHT / 3 + 10}, "A game by Owen McCormick", TCOD_ColorRGB{155, 118, 83}, std::nullopt);
       credits = TCOD_console_credits_render_ex(console.get(), DISPLAYWIDTH / 50, DISPLAYHEIGHT / 3 + 20, false, deltaTime * 1.5);
-    } else {
+    } else if (timeRemaining > 0) {
       map->render(console, cursorX, cursorY, tickCount);
       for (auto actor : actors) {
         // Flicker in water
         if (map->getWater(actor->getX(), actor->getY()) == 0 || tickCount % 48 >= 24)
           actor->render(console, cursorX, cursorY, DISPLAYWIDTH, DISPLAYHEIGHT, map->getWater(actor->getX(), actor->getY()));
       }
-      if (tickCount % 36 >= 0) tcod::print(console, {cursorX, DISPLAYHEIGHT / 2}, "X", TCOD_ColorRGB{255, 255, 0}, std::nullopt);
       // Inventory display
       tcod::print(console, {0, 0}, "WOOD: "  + std::to_string(inventory->wood), Material::TRUNK.fg, std::nullopt);
       tcod::print(console, {10, 0}, "SEED: " + std::to_string(inventory->cerealSeed), Material::CEREAL_SEED.fg, std::nullopt);
       tcod::print(console, {20, 0}, "GRAIN: " + std::to_string(inventory->cerealGrain), Material::CEREAL_PLANT.fg, std::nullopt);
       tcod::print(console, {31, 0}, "STONE: " + std::to_string(inventory->slate), Material::ROCK.bg, std::nullopt);
-      tcod::print(console, {41, 0}, "COPPER ORE: " + std::to_string(inventory->copperOre), Material::COPPER_ORE.bg, std::nullopt);
-      tcod::print(console, {57, 0}, "TIN ORE: " + std::to_string(inventory->tinOre), Material::TIN_ORE.bg, std::nullopt);
+      tcod::print(console, {43, 0}, "COPPER ORE: " + std::to_string(inventory->copperOre), Material::COPPER_ORE.bg, std::nullopt);
+      tcod::print(console, {60, 0}, "TIN ORE: " + std::to_string(inventory->tinOre), Material::TIN_ORE.bg, std::nullopt);
       tcod::print(console, {0, 1}, "FLOUR: " + std::to_string(inventory->flour), TCOD_ColorRGB{255, 255, 255}, std::nullopt);
       tcod::print(console, {11, 1}, "BREAD: " + std::to_string(inventory->bread), TCOD_ColorRGB{166, 42, 42}, std::nullopt);
       tcod::print(console, {22, 1}, "BRONZE: " + std::to_string(inventory->bronze), Material::COPPER_ORE.bg, std::nullopt);
-      tcod::print(console, {33, 1}, "MORALE: " + std::to_string(inventory->moraleBed + inventory->moraleFood), TCOD_ColorRGB{255, 255, 255}, std::nullopt);
-      tcod::print(console, {44, 1}, "POINTS: " + std::to_string(inventory->points), TCOD_ColorRGB{255, 255, 255}, std::nullopt);
+      tcod::print(console, {34, 1}, "GEMS: " + std::to_string(inventory->gems), Material::GEM.bg, std::nullopt);
+      tcod::print(console, {0, 2}, "MORALE: " + std::to_string(inventory->moraleBed + inventory->moraleFood), TCOD_ColorRGB{255, 255, 255}, std::nullopt);
+      tcod::print(console, {12, 2}, "POINTS: " + std::to_string(inventory->points), TCOD_ColorRGB{255, 255, 255}, std::nullopt);
+      tcod::print(console, {24, 2}, "REMAINING TIME: " + std::to_string((int) timeRemaining) + "s", TCOD_ColorRGB{255, 0, 0}, std::nullopt);
 
       // Designation markers
       std::string designateMark = "";
@@ -248,6 +254,7 @@ int main(int argc, char* argv[]) {
           tcod::print(console, {0, 43}, "BUY WOOD: -2 PTS", selectedBuyIndex == 0 ? TCOD_ColorRGB{0, 0, 0} : TCOD_ColorRGB{125, 125, 125}, selectedBuyIndex == 0 ? TCOD_ColorRGB{125, 125, 125} : TCOD_ColorRGB{0, 0, 0});
           tcod::print(console, {17, 43}, "SELL BRONZE: +6 PTS", selectedBuyIndex == 1 ? TCOD_ColorRGB{0, 0, 0} : TCOD_ColorRGB{125, 125, 125}, selectedBuyIndex == 1 ? TCOD_ColorRGB{125, 125, 125} : TCOD_ColorRGB{0, 0, 0});
           tcod::print(console, {37, 43}, "SELL FLOUR: +2 PTS", selectedBuyIndex == 2 ? TCOD_ColorRGB{0, 0, 0} : TCOD_ColorRGB{125, 125, 125}, selectedBuyIndex == 2 ? TCOD_ColorRGB{125, 125, 125} : TCOD_ColorRGB{0, 0, 0});
+          tcod::print(console, {56, 43}, "SELL GEMS: +10 PTS", selectedBuyIndex == 3 ? TCOD_ColorRGB{0, 0, 0} : TCOD_ColorRGB{125, 125, 125}, selectedBuyIndex == 3 ? TCOD_ColorRGB{125, 125, 125} : TCOD_ColorRGB{0, 0, 0});
         } else {
           tcod::print(console, {0, 43}, "TRADING NOT AVAILABLE - MORALE MUST BE 6 OR GREATER!", TCOD_ColorRGB{0, 0, 0}, TCOD_ColorRGB{125, 125, 125});
         }
@@ -271,10 +278,26 @@ int main(int argc, char* argv[]) {
       }
 
       if (!paused) {
-        map->tick(tickCount);
+        map->tick(tickCount, false);
         for (auto actor : actors) {
           actor->act(tickCount, isTraderPresent);
         }
+      }
+
+      // Cursor
+      if (tickCount % 36 >= 0) tcod::print(console, {cursorX, DISPLAYHEIGHT / 2}, "X", TCOD_ColorRGB{255, 255, 0}, std::nullopt);
+    } else {
+      // Out of time
+      for (int i = 0; i < WIDTH; i++) {
+        for (int j = 0; j < HEIGHT; j++) {
+          if (!map->getDisintegrate(i, j)) map->setDisintegrate(i, j, true);
+        }
+      }
+      map->tick(tickCount, true);
+      map->render(console, cursorX, cursorY, tickCount);
+      if (timeRemaining < -3) {
+        tcod::print(console, {DISPLAYWIDTH / 2 - 8, DISPLAYHEIGHT / 2 - 1}, "THE END...", TCOD_ColorRGB{100, 85, 75}, std::nullopt);
+        tcod::print(console, {DISPLAYWIDTH / 2 - 8, DISPLAYHEIGHT / 2 + 1}, "SCORE: " + std::to_string(inventory->points), TCOD_ColorRGB{100, 85, 75}, std::nullopt);
       }
     }
 
@@ -365,6 +388,8 @@ int main(int argc, char* argv[]) {
                     taskQueue->push(Order(OrderType::TRADE, 1, 0, 0, 0, 0, TradeType::SELL_BRONZE));
                   } else if (selectedBuyIndex == 2 && inventory->flour > 0) {
                     taskQueue->push(Order(OrderType::TRADE, 1, 0, 0, 0, 0, TradeType::SELL_FLOUR));
+                  } else if (selectedBuyIndex == 3 && inventory->gems > 0) {
+                    taskQueue->push(Order(OrderType::TRADE, 1, 0, 0, 0, 0, TradeType::SELL_GEMS));
                   }
                 }
               } else {

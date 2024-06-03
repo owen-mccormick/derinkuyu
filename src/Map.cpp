@@ -26,6 +26,7 @@ const Material Material::SMELTER = Material("SMELTER", true, false, 'U', 15, TCO
 const Material Material::MILLSTONE = Material("MILLSTONE", true, false, 'O', 16, TCOD_ColorRGB{100, 85, 75}, TCOD_ColorRGB{255, 255, 255});
 const Material Material::POLE = Material("POLE", true, false, '|', 17, TCOD_ColorRGB{166, 42, 42}, TCOD_ColorRGB{255, 255, 255});
 const Material Material::OVEN = Material("OVEN", true, false, 0x2610, 18, TCOD_ColorRGB{100, 85, 75}, TCOD_ColorRGB{255, 255, 255});
+const Material Material::GEM = Material("GEM", false, false, 0x2593, 0x2592, 0x2591, 19, TCOD_ColorRGB{100, 85, 75}, TCOD_ColorRGB{0, 100, 100});
 
 Map::Map(Inventory* inventory, int width, int height, int displayWidth, int displayHeight) : width(width),
     height(height), displayWidth(displayWidth), displayHeight(displayHeight), inventory(inventory), playersPlaced(0) {
@@ -170,6 +171,12 @@ Map::Map(Inventory* inventory, int width, int height, int displayWidth, int disp
       }
     }
   }
+
+  // Place gems
+  for (int k = 0; k < 20; k++) {
+    int x = rng->getInt(0, width), y = rng->getInt(height * 3 / 5, height);
+    if (getMaterial(x, y).id == Material::ROCK.id) setMaterial(x, y, Material::GEM);
+  }
 }
 
 Tile* Map::getTile(int x, int y) {
@@ -276,7 +283,7 @@ bool Map::sunExposure(int x, int y, int tickCount) {
   return sunExposure(x, y - 1, tickCount);
 }
 
-void Map::render(tcod::Console &console, int cursorX, int cursorY, int tickCount) {
+void Map::render(tcod::Console &console, int cursorX, int cursorY, int tickCount) { // tileSkip is for making the map appear to dissolve at the end
 
   // Updates light
   // TODO - make this work with arbirary light source tiles instead of just raycasting down from the top of the map
@@ -336,46 +343,46 @@ void Map::render(tcod::Console &console, int cursorX, int cursorY, int tickCount
   for (int i = 0; i < displayWidth; i++) {
     for (int j = cursorY - displayHeight / 2; j < cursorY + displayHeight / 2; j++) {
       if (areCoordsValid(i, j)) {
-          Tile tile = *getTile(i, j);
-          // TODO - reenable blinking underwater object behavior
-          if (tile.water > 0 && (tickCount % 48 < -1 || tile.material.id == Material::VACUUM.id)) {
-            TCOD_console_put_char_ex(console.get(), i, j - cursorY + displayHeight / 2,
-              0x2588, TCOD_ColorRGB{0, 0, 0}, TCOD_ColorRGB{0, 0, 125});
-          } else {
-            // Flicker with blue background in water, and also shade based on depth
-            // Ores need the background color and are unaffected, along with workstations with inUse flag
-            int ch = 0;
-            switch (getDamaged(i, j)) {
-              case (INTACT): {
-                TCOD_console_put_char_ex(console.get(), i, j - cursorY + displayHeight / 2,
-                  tile.material.ch, tile.material.fg, tile.inUse ? TCOD_ColorRGB{255, 0, 0}
-                  : tile.material.id == Material::COPPER_ORE.id || tile.material.id == Material::TIN_ORE.id
-                  ? tile.material.bg : tile.water == 0
-                  ? TCOD_ColorRGB{ tile.light, tile.light, tile.light } : TCOD_ColorRGB{0, 0, 125}); 
-                break;
-              }
-              case (DAMAGED): {
-                TCOD_console_put_char_ex(console.get(), i, j - cursorY + displayHeight / 2,
-                  tile.material.chDamaged, tile.material.fg, tile.inUse ? TCOD_ColorRGB{255, 0, 0}
-                  : tile.material.id == Material::COPPER_ORE.id || tile.material.id == Material::TIN_ORE.id
-                  ? tile.material.bg : tile.water == 0
-                  ? TCOD_ColorRGB{ tile.light, tile.light, tile.light } : TCOD_ColorRGB{0, 0, 125}); 
-              }
-              case (BROKEN): {
-                TCOD_console_put_char_ex(console.get(), i, j - cursorY + displayHeight / 2,
-                  tile.material.chBroken, tile.material.fg, tile.inUse ? TCOD_ColorRGB{255, 0, 0}
-                  : tile.material.id == Material::COPPER_ORE.id || tile.material.id == Material::TIN_ORE.id
-                  ? tile.material.bg : tile.water == 0
-                  ? TCOD_ColorRGB{ tile.light, tile.light, tile.light } : TCOD_ColorRGB{0, 0, 125}); 
-              }
+        Tile tile = *getTile(i, j);
+        // TODO - reenable blinking underwater object behavior
+        if (tile.water > 0 && (tickCount % 48 < -1 || tile.material.id == Material::VACUUM.id)) {
+          TCOD_console_put_char_ex(console.get(), i, j - cursorY + displayHeight / 2,
+            0x2588, TCOD_ColorRGB{0, 0, 0}, TCOD_ColorRGB{0, 0, 125});
+        } else {
+          // Flicker with blue background in water, and also shade based on depth
+          // Ores and gems need the background color and are unaffected, along with workstations with inUse flag
+          int ch = 0;
+          switch (getDamaged(i, j)) {
+            case (INTACT): {
+              TCOD_console_put_char_ex(console.get(), i, j - cursorY + displayHeight / 2,
+                tile.material.ch, tile.material.fg, tile.inUse ? TCOD_ColorRGB{255, 0, 0}
+                : tile.material.id == Material::COPPER_ORE.id || tile.material.id == Material::TIN_ORE.id || tile.material.id == Material::GEM.id
+                ? tile.material.bg : tile.water == 0
+                ? TCOD_ColorRGB{ tile.light, tile.light, tile.light } : TCOD_ColorRGB{0, 0, 125}); 
+              break;
+            }
+            case (DAMAGED): {
+              TCOD_console_put_char_ex(console.get(), i, j - cursorY + displayHeight / 2,
+                tile.material.chDamaged, tile.material.fg, tile.inUse ? TCOD_ColorRGB{255, 0, 0}
+                : tile.material.id == Material::COPPER_ORE.id || tile.material.id == Material::TIN_ORE.id || tile.material.id == Material::GEM.id
+                ? tile.material.bg : tile.water == 0
+                ? TCOD_ColorRGB{ tile.light, tile.light, tile.light } : TCOD_ColorRGB{0, 0, 125}); 
+            }
+            case (BROKEN): {
+              TCOD_console_put_char_ex(console.get(), i, j - cursorY + displayHeight / 2,
+                tile.material.chBroken, tile.material.fg, tile.inUse ? TCOD_ColorRGB{255, 0, 0}
+                : tile.material.id == Material::COPPER_ORE.id || tile.material.id == Material::TIN_ORE.id || tile.material.id == Material::GEM.id
+                ? tile.material.bg : tile.water == 0
+                ? TCOD_ColorRGB{ tile.light, tile.light, tile.light } : TCOD_ColorRGB{0, 0, 125}); 
             }
           }
+        }
       }
     }
   }
 }
 
-void Map::tick(int tickCount) {
+void Map::tick(int tickCount, bool end) {
   TCODRandom* rng = TCODRandom::getInstance();
 
   // Sheltered beds contribute to morale
@@ -386,7 +393,7 @@ void Map::tick(int tickCount) {
       // Disintegrate tile flag functionality
       if (getTile(i, j)->disintegrate && rng->getInt(0, 15) == 0) {
         if (getMaterial(i, j).id == Material::TRUNK.id) inventory->wood++;
-        setMaterial(i, j, Material::VACUUM);
+        getTile(i, j)->material =  Material::VACUUM; // ignores indestructible
         getTile(i, j)->disintegrate = false;
       }
       // Plant seeds mature and are destroyed upon plot removal
@@ -423,7 +430,7 @@ void Map::tick(int tickCount) {
   // Water flow
   for (int i = 0; i < width; i++) {
     for (int j = height; j >= 0; j--) {
-      if (!(getTile(i, j)->indestructible && j >= 15)) { // Still allows rain over the lake
+      if (!(getTile(i, j)->indestructible && j >= 15) || end) { // Still allows rain over the lake
         // Water with no neighbors may evaporate
         int evaporateXOffs[3] = {-1, 0, 1};
         int evaporateYOffs[3] = {-1, 0, 1};

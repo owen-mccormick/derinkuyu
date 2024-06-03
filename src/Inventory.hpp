@@ -13,6 +13,7 @@ struct Inventory {
   int moraleBed;
   int moraleFood;
   int points;
-  Inventory() : wood(0), cerealSeed(5), cerealGrain(0), tinOre(0), copperOre(0), slate(0), flour(0), bronze(0), bread(0), moraleBed(0), moraleFood(0), points(0) {};
+  int gems;
+  Inventory() : wood(0), cerealSeed(5), cerealGrain(0), tinOre(0), copperOre(0), slate(0), flour(0), bronze(0), bread(0), moraleBed(0), moraleFood(0), points(0), gems(0) {};
   // TODO - function to add or subtract counts by Material
 };
