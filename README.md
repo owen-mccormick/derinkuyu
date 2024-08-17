@@ -1,10 +1,18 @@
-### Derinkuyu
+## Derinkuyu
 
-A rudimentary base-building game demo made for a C++ independent school project with [Libtcod](https://github.com/libtcod/libtcod). The gameplay aims to be a super bare-bones imitation of Oxygen Not Included and Dwarf Fortress, and the name comes from the the Derinkuyu underground city site in Turkiye.
+A simple base-building game demo made for a C++ independent school project with [Libtcod](https://github.com/libtcod/libtcod). The gameplay aims to be a super bare-bones imitation of Oxygen Not Included and Dwarf Fortress, and the name comes from the the Derinkuyu underground city site in Turkiye.
 
-#### Keybinds / How to Play
+### Screenshots
 
-The goal is to raise the "morale" of your three villagers ('@' characters) by building them basic amenities like shelter, beds, and a stockpile of bread. After morale passes 6 (all three have bread and a bed) the object shifts to selling as much bronze, flour, and gems to the trader for points before the timer runs out.
+![Building screenshot](data/screenshots/screenshot1.png)
+![Mining screenshot](data/screenshots/screenshot2.png)
+![Score screenshot](data/screenshots/screenshot3.png)
+
+### Keybinds / How to Play
+
+WARNING - On my Fedora Linux system, the program sometimes randomly crashes on startup. You may need to attempt to launch the program several times until it starts successfully. I'm still new to C++; not sure why this is happening.
+
+The goal is to raise the "morale" of your three characters ('@' symbols) by building them basic amenities like shelter, beds, and a stockpile of bread. After morale passes 6 (all three characters have bread and a bed) the object shifts to selling as much bronze, flour, and gems to the trader for points before the timer runs out.
 
 WASD - move cursor
 
@@ -22,7 +30,7 @@ R - use smelter (copper (x2) and tin (x1) to bronze), millstone (grain to flour)
 
 Z / X / C - Z and C scroll the build menu at the bottom of the screen and X orders construction of that item on the cursor's tile. Buildings require wood and oven / millstone / smelter need stone. When hovering over the trader ('&' character) with the cursor, these three keys instead navigate the trading menu.
 
-#### To-Do
+### To-Do
 - In-game help sheet with keybinds and game mechanics
 - Irrigation systems and multiple cultivable plants
 - Changing weather
