@@ -1,6 +1,6 @@
 ## Derinkuyu
 
-A simple base-building game demo made for a C++ independent school project with [Libtcod](https://github.com/libtcod/libtcod). The gameplay aims to be a super bare-bones imitation of Oxygen Not Included and Dwarf Fortress, and the name comes from the the Derinkuyu underground city site in Turkiye.
+A simple base-building game demo made for a C++ independent school project with [Libtcod](https://github.com/libtcod/libtcod). The gameplay aims to be a super bare-bones demo imitation of the playstyle of games like Oxygen Not Included and Dwarf Fortress, and the name comes from the the Derinkuyu underground city site in Turkiye.
 
 ### Screenshots
 
@@ -30,13 +30,13 @@ R - use smelter (copper (x2) and tin (x1) to bronze), millstone (grain to flour)
 
 Z / X / C - Z and C scroll the build menu at the bottom of the screen and X orders construction of that item on the cursor's tile. Buildings require wood and oven / millstone / smelter need stone. When hovering over the trader ('&' character) with the cursor, these three keys instead navigate the trading menu.
 
-### To-Do
-- In-game help sheet with keybinds and game mechanics
-- Irrigation systems and multiple cultivable plants
-- Changing weather
-- Different biomes, both on surface (flat land, cliffs, rock chimneys) and underground (groundwater, caverns, lava)
-- Animals and wildlife
-- Make chopping / building non-instantaneous
-- Defenses and enemy raids
-- Add dynamic "lighting" and "fog of war" so whole map isn't always visible
-- Replace global inventory with tracking of actual item objects that can be moved and stored on particular tiles
+<!-- ### To-Do -->
+<!-- - In-game help sheet with keybinds and game mechanics -->
+<!-- - Irrigation systems and multiple cultivable plants -->
+<!-- - Changing weather -->
+<!-- - Different biomes, both on surface (flat land, cliffs, rock chimneys) and underground (groundwater, caverns, lava) -->
+<!-- - Animals and wildlife -->
+<!-- - Make chopping / building non-instantaneous -->
+<!-- - Defenses and enemy raids -->
+<!-- - Add dynamic "lighting" and "fog of war" so whole map isn't always visible -->
+<!-- - Replace global inventory with tracking of actual item objects that can be moved and stored on particular tiles -->
